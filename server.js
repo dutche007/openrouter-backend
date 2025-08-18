@@ -17,7 +17,6 @@ app.post('/api/chat', async (req, res) => {
             headers: {
                 'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://your-site.com',
                 'X-Title': 'My AI Chat App'
             }
         });
