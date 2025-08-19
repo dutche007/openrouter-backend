@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HAL 9000 Chat</title>
+    <title>ALICE BOT</title>
     <style>
         body {
             font-family: 'Orbitron', Arial, sans-serif;
@@ -94,7 +94,7 @@
     </style>
 </head>
 <body>
-    <h1>HAL 9000 Chat</h1>
+    <h1>ALICE BOT</h1>
     <label for="modelSelect">Choose AI Model:</label>
     <select id="modelSelect"></select>
 
@@ -144,7 +144,9 @@
                 typingIndicator.remove();
 
                 if (res.ok) {
-                    const reply = data.choices[0].message.content;
+                    let reply = data.choices[0].message.content;
+                    // Keep replies short and conversational
+                    if (reply.length > 200) reply = reply.split('. ')[0] + '.';
                     addMessage(reply, 'ai');
                     speakText(reply);
                 } else {
@@ -167,11 +169,19 @@
         }
 
         function speakText(text) {
-            stopSpeaking(); // stop previous if still going
-            const chatbox = document.getElementById('chatbox');
+            stopSpeaking();
+
+            // Choose male voice if available
+            const voices = speechSynthesis.getVoices();
+            let voice = voices.find(v => v.name.toLowerCase().includes('male')) || voices[0];
+
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.1;
-            utterance.pitch = 1;
+            utterance.voice = voice;
+            utterance.pitch = 0.6; // deeper voice
+            utterance.rate = 0.9;  // slightly slower
+
+            // Glow effect
+            const chatbox = document.getElementById('chatbox');
             utterance.onstart = () => {
                 isSpeaking = true;
                 chatbox.classList.add('speaking');
@@ -180,6 +190,13 @@
                 isSpeaking = false;
                 chatbox.classList.remove('speaking');
             };
+
+            // Use Web Audio API for basic reverb simulation
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaStreamSource(utterance);
+            const convolver = audioCtx.createConvolver(); // placeholder for reverb
+            source.connect(convolver).connect(audioCtx.destination);
+
             speechSynthesis.speak(utterance);
         }
 
