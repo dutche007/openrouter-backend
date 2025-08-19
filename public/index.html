@@ -200,26 +200,13 @@ function addMessage(text, type) {
     return msg;
 }
 
+// --- Simplified TTS ---
 function speakText(text) {
-    stopSpeaking();
-    const voices = speechSynthesis.getVoices();
-    let voice = voices.find(v => v.name.toLowerCase().includes('male')) || voices[0];
-
+    stopSpeaking(); // Cancel any ongoing speech
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = voice;
-    utterance.pitch = 0.5;
-    utterance.rate = 0.85;
-
     const chatbox = document.getElementById('chatbox');
-    utterance.onstart = () => {
-        isSpeaking = true;
-        chatbox.classList.add('speaking');
-    };
-    utterance.onend = () => {
-        isSpeaking = false;
-        chatbox.classList.remove('speaking');
-    };
-
+    utterance.onstart = () => chatbox.classList.add('speaking');
+    utterance.onend = () => chatbox.classList.remove('speaking');
     speechSynthesis.speak(utterance);
 }
 
@@ -227,7 +214,6 @@ function stopSpeaking() {
     if (speechSynthesis.speaking) {
         speechSynthesis.cancel();
         document.getElementById('chatbox').classList.remove('speaking');
-        isSpeaking = false;
     }
 }
 
