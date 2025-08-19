@@ -3,38 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi AI Chat</title>
+    <title>HAL 9000 Chat</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Orbitron', Arial, sans-serif;
             max-width: 800px;
             margin: auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: black;
+            color: #ff4d4d;
+            text-shadow: 0 0 8px #ff0000;
+        }
+        h1 {
+            text-align: center;
+            color: #ff4d4d;
+            text-shadow: 0 0 15px #ff0000, 0 0 30px #ff3333;
         }
         #chatbox {
-            border: 1px solid #ccc;
+            border: 2px solid #ff1a1a;
             height: 400px;
             overflow-y: scroll;
             padding: 15px;
-            background-color: white;
-            border-radius: 8px;
+            background-color: #111;
+            border-radius: 12px;
             margin-bottom: 10px;
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        #chatbox.speaking {
+            box-shadow: 0 0 25px #ff0000, 0 0 50px #ff1a1a;
         }
         .message {
             margin: 5px 0;
-            padding: 8px;
-            border-radius: 5px;
+            padding: 10px 12px;
+            border-radius: 8px;
             max-width: 70%;
             clear: both;
+            font-size: 1rem;
         }
         .user {
-            background-color: #e6f3ff;
+            background-color: #222;
+            color: #ff6666;
+            border: 1px solid #ff3333;
             float: right;
             text-align: right;
         }
         .ai {
-            background-color: #f0f0f0;
+            background-color: #330000;
+            color: #ffcccc;
+            border: 1px solid #ff4d4d;
             float: left;
         }
         #controls {
@@ -45,25 +61,32 @@
         input {
             flex: 1;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #ff3333;
             border-radius: 5px;
+            background: #111;
+            color: #ff4d4d;
         }
         button {
             padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
+            background-color: #330000;
+            color: #ff4d4d;
+            border: 1px solid #ff3333;
             border-radius: 5px;
             cursor: pointer;
+            text-shadow: 0 0 8px #ff0000;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #550000;
+            box-shadow: 0 0 10px #ff0000;
         }
         select {
             padding: 10px;
             border-radius: 5px;
             margin-bottom: 10px;
             width: 100%;
+            background: #111;
+            color: #ff4d4d;
+            border: 1px solid #ff3333;
         }
         @media (max-width: 600px) {
             #chatbox { height: 300px; }
@@ -71,7 +94,7 @@
     </style>
 </head>
 <body>
-    <h1>Multi AI Chat</h1>
+    <h1>HAL 9000 Chat</h1>
     <label for="modelSelect">Choose AI Model:</label>
     <select id="modelSelect"></select>
 
@@ -81,10 +104,12 @@
         <input type="text" id="userInput" placeholder="Type your message...">
         <button onclick="sendMessage()">Send</button>
         <button onclick="resetChat()">Clear</button>
+        <button onclick="stopSpeaking()">Stop Voice</button>
     </div>
 
     <script>
         let sessionId = Date.now().toString();
+        let isSpeaking = false;
 
         async function loadModels() {
             const res = await fetch('/api/models');
@@ -121,7 +146,7 @@
                 if (res.ok) {
                     const reply = data.choices[0].message.content;
                     addMessage(reply, 'ai');
-                    speakText(reply); // 🔊 speak the AI reply
+                    speakText(reply);
                 } else {
                     addMessage('Error: ' + (data.error || 'Unknown error'), 'ai');
                 }
@@ -142,10 +167,28 @@
         }
 
         function speakText(text) {
+            stopSpeaking(); // stop previous if still going
+            const chatbox = document.getElementById('chatbox');
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1.1;
             utterance.pitch = 1;
+            utterance.onstart = () => {
+                isSpeaking = true;
+                chatbox.classList.add('speaking');
+            };
+            utterance.onend = () => {
+                isSpeaking = false;
+                chatbox.classList.remove('speaking');
+            };
             speechSynthesis.speak(utterance);
+        }
+
+        function stopSpeaking() {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                document.getElementById('chatbox').classList.remove('speaking');
+                isSpeaking = false;
+            }
         }
 
         async function resetChat() {
@@ -155,6 +198,7 @@
                 body: JSON.stringify({ sessionId })
             });
             document.getElementById('chatbox').innerHTML = '';
+            stopSpeaking();
         }
 
         document.getElementById('userInput').addEventListener('keypress', (e) => {
