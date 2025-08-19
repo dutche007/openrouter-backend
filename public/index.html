@@ -95,7 +95,7 @@
                      }
                      return response.json();
                  })
-                 .then(data => addMessage('Bot: ' + data.choices[0].message.content, 'ai'))
+                 .then(data => addMessage('Me: ' + data.choices[0].message.content, 'ai'))
                  .catch(error => addMessage('Error: ' + error.message, 'ai'));
                  document.getElementById('userInput').value = '';
              }
