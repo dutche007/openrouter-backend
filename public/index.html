@@ -96,7 +96,12 @@
 <body>
     <h1>ALICE BOT</h1>
     <label for="modelSelect">Choose AI Model:</label>
-    <select id="modelSelect"></select>
+    <select id="modelSelect">
+        <option value="qwen/qwen-2.5-coder-32b-instruct:free" selected>Qwen 2.5 Coder 32B (Free)</option>
+        <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">Dolphin Mistral 24B Venice (Free)</option>
+        <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
+        <option value="mistralai/mistral-7b-instruct">Mistral 7B (Free)</option>
+    </select>
 
     <div id="chatbox"></div>
 
@@ -110,18 +115,6 @@
     <script>
         let sessionId = Date.now().toString();
         let isSpeaking = false;
-
-        async function loadModels() {
-            const res = await fetch('/api/models');
-            const models = await res.json();
-            const select = document.getElementById('modelSelect');
-            models.forEach(m => {
-                const option = document.createElement('option');
-                option.value = m.id;
-                option.textContent = m.name;
-                select.appendChild(option);
-            });
-        }
 
         async function sendMessage() {
             const input = document.getElementById('userInput');
@@ -145,7 +138,6 @@
 
                 if (res.ok) {
                     let reply = data.choices[0].message.content;
-                    // Keep replies short and conversational
                     if (reply.length > 200) reply = reply.split('. ')[0] + '.';
                     addMessage(reply, 'ai');
                     speakText(reply);
@@ -171,16 +163,14 @@
         function speakText(text) {
             stopSpeaking();
 
-            // Choose male voice if available
             const voices = speechSynthesis.getVoices();
             let voice = voices.find(v => v.name.toLowerCase().includes('male')) || voices[0];
 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.voice = voice;
-            utterance.pitch = 0.6; // deeper voice
-            utterance.rate = 0.9;  // slightly slower
+            utterance.pitch = 0.5;
+            utterance.rate = 0.85;
 
-            // Glow effect
             const chatbox = document.getElementById('chatbox');
             utterance.onstart = () => {
                 isSpeaking = true;
@@ -190,12 +180,6 @@
                 isSpeaking = false;
                 chatbox.classList.remove('speaking');
             };
-
-            // Use Web Audio API for basic reverb simulation
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioCtx.createMediaStreamSource(utterance);
-            const convolver = audioCtx.createConvolver(); // placeholder for reverb
-            source.connect(convolver).connect(audioCtx.destination);
 
             speechSynthesis.speak(utterance);
         }
@@ -221,8 +205,6 @@
         document.getElementById('userInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
-
-        loadModels();
     </script>
 </body>
 </html>
