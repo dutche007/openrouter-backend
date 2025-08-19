@@ -1,113 +1,158 @@
 <!DOCTYPE html>
-     <html lang="en">
-     <head>
-         <meta charset="UTF-8">
-         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-         <title>OpenRouter AI Chat</title>
-         <style>
-             body {
-                 font-family: Arial, sans-serif;
-                 max-width: 800px;
-                 margin: auto;
-                 padding: 20px;
-                 background-color: #f5f5f5;
-             }
-             #chatbox {
-                 border: 1px solid #ccc;
-                 height: 400px;
-                 overflow-y: scroll;
-                 padding: 15px;
-                 background-color: white;
-                 border-radius: 8px;
-                 margin-bottom: 10px;
-             }
-             #chatbox p {
-                 margin: 5px 0;
-                 padding: 8px;
-                 border-radius: 5px;
-             }
-             #chatbox p.user {
-                 background-color: #e6f3ff;
-                 text-align: right;
-             }
-             #chatbox p.ai {
-                 background-color: #f0f0f0;
-             }
-             input {
-                 width: 70%;
-                 padding: 10px;
-                 border: 1px solid #ccc;
-                 border-radius: 5px;
-                 margin-right: 10px;
-             }
-             button {
-                 padding: 10px 20px;
-                 background-color: #007bff;
-                 color: white;
-                 border: none;
-                 border-radius: 5px;
-                 cursor: pointer;
-             }
-             button:hover {
-                 background-color: #0056b3;
-             }
-             select {
-                 padding: 10px;
-                 border-radius: 5px;
-                 margin-bottom: 10px;
-                 width: 100%;
-             }
-             @media (max-width: 600px) {
-                 input { width: 65%; }
-                 button { padding: 10px; }
-                 #chatbox { height: 300px; }
-             }
-         </style>
-     </head>
-     <body>
-         <h1>multi chat test bot thigy</h1>
-         <label for="modelSelect">Choose AI Model but not gork as not working:</label>
-         <select id="modelSelect">
-             <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free" selected>Dolphin Mistral 24B Venice (Free)</option>
-             <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
-             <option value="mistralai/mistral-7b-instruct">Mistral 7B (Free)</option>
-             <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder 32B (Free)</option>
-           </select>
-         <div id="chatbox"></div>
-         <input type="text" id="userInput" placeholder="Type your message...">
-         <button onclick="sendMessage()">Send</button>
-         <script>
-             function sendMessage() {
-                 const input = document.getElementById('userInput').value;
-                 const model = document.getElementById('modelSelect').value;
-                 if (!input) return;
-                 addMessage('You: ' + input, 'user');
-                 fetch('/api/chat', {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
-                     body: JSON.stringify({ prompt: input, model: model })
-                 })
-                 .then(response => {
-                     if (!response.ok) {
-                         return response.json().then(err => {
-                             throw new Error(`API request failed: ${err.error?.message || response.status}`);
-                         });
-                     }
-                     return response.json();
-                 })
-                 .then(data => addMessage('Me: ' + data.choices[0].message.content, 'ai'))
-                 .catch(error => addMessage('Error: ' + error.message, 'ai'));
-                 document.getElementById('userInput').value = '';
-             }
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi AI Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #chatbox {
+            border: 1px solid #ccc;
+            height: 400px;
+            overflow-y: scroll;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 70%;
+            clear: both;
+        }
+        .user {
+            background-color: #e6f3ff;
+            float: right;
+            text-align: right;
+        }
+        .ai {
+            background-color: #f0f0f0;
+            float: left;
+        }
+        #controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        select {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        @media (max-width: 600px) {
+            #chatbox { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Multi AI Chat</h1>
+    <label for="modelSelect">Choose AI Model:</label>
+    <select id="modelSelect"></select>
 
-             function addMessage(text, type) {
-                 const chatbox = document.getElementById('chatbox');
-                 const msg = document.createElement('p');
-                 msg.textContent = text;
-                 msg.className = type;
-                 chatbox.appendChild(msg);
-                 chatbox.scrollTop = chatbox.scrollHeight;
-             }
-         </script>
-     </body>
-     </html>
+    <div id="chatbox"></div>
+
+    <div id="controls">
+        <input type="text" id="userInput" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="resetChat()">Clear</button>
+    </div>
+
+    <script>
+        let sessionId = Date.now().toString();
+
+        async function loadModels() {
+            const res = await fetch('/api/models');
+            const models = await res.json();
+            const select = document.getElementById('modelSelect');
+            models.forEach(m => {
+                const option = document.createElement('option');
+                option.value = m.id;
+                option.textContent = m.name;
+                select.appendChild(option);
+            });
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            const model = document.getElementById('modelSelect').value;
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+
+            const typingIndicator = addMessage('AI is typing...', 'ai');
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: text, model: model, sessionId: sessionId })
+                });
+                const data = await res.json();
+                typingIndicator.remove();
+
+                if (res.ok) {
+                    addMessage(data.choices[0].message.content, 'ai');
+                } else {
+                    addMessage('Error: ' + (data.error || 'Unknown error'), 'ai');
+                }
+            } catch (err) {
+                typingIndicator.remove();
+                addMessage('Error: ' + err.message, 'ai');
+            }
+        }
+
+        function addMessage(text, type) {
+            const chatbox = document.getElementById('chatbox');
+            const msg = document.createElement('div');
+            msg.textContent = text;
+            msg.className = 'message ' + type;
+            chatbox.appendChild(msg);
+            chatbox.scrollTop = chatbox.scrollHeight;
+            return msg;
+        }
+
+        async function resetChat() {
+            await fetch('/api/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId })
+            });
+            document.getElementById('chatbox').innerHTML = '';
+        }
+
+        document.getElementById('userInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        loadModels();
+    </script>
+</body>
+</html>
