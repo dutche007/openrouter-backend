@@ -1,195 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ALICE BOT</title>
-<style>
-    body {
-        font-family: 'Courier New', Courier, monospace;
-        max-width: 800px;
-        margin: auto;
-        padding: 20px;
-        background-color: #000;
-        color: #f00;
-    }
-    h1 {
-        text-align: center;
-        color: #ff1a1a;
-    }
-    #modelSelect {
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        width: 100%;
-        background-color: #111;
-        color: #f00;
-        border: 1px solid #f00;
-    }
-    #chatbox {
-        border: 3px solid #f00;
-        height: 400px;
-        overflow-y: scroll;
-        padding: 15px;
-        background-color: #111;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        transition: box-shadow 0.3s, border-color 0.3s;
-    }
-    #chatbox.speaking {
-        animation: pulse 1s infinite;
-    }
-    @keyframes pulse {
-        0% {
-            box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 60px #ff0000;
-            border-color: #ff1a1a;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALICE BOT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #000;
+            color: #fff;
         }
-        50% {
-            box-shadow: 0 0 40px #ff0000, 0 0 80px #ff0000, 0 0 120px #ff0000;
-            border-color: #ff4d4d;
+        #chatbox {
+            border: 3px solid red;
+            height: 400px;
+            overflow-y: scroll;
+            padding: 15px;
+            background-color: #111;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 0 20px #f00 inset;
         }
-        100% {
-            box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 60px #ff0000;
-            border-color: #ff1a1a;
+        #chatbox p {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
         }
-    }
-    #chatbox p {
-        margin: 5px 0;
-        padding: 8px;
-        border-radius: 5px;
-    }
-    #chatbox p.user {
-        background-color: #330000;
-        text-align: right;
-        color: #ff6666;
-    }
-    #chatbox p.ai {
-        background-color: #111;
-        color: #ff1a1a;
-    }
-    input {
-        width: 60%;
-        padding: 10px;
-        border: 1px solid #f00;
-        border-radius: 5px;
-        margin-right: 10px;
-        background-color: #000;
-        color: #f00;
-    }
-    button {
-        padding: 10px 20px;
-        background-color: #111;
-        color: #f00;
-        border: 1px solid #f00;
-        border-radius: 5px;
-        cursor: pointer;
-    }
-    button:hover {
-        background-color: #330000;
-    }
-    @media (max-width: 600px) {
-        input { width: 55%; }
-        #chatbox { height: 300px; }
-    }
-</style>
+        #chatbox p.user {
+            background-color: #330000;
+            text-align: right;
+        }
+        #chatbox p.ai {
+            background-color: #111;
+        }
+        input {
+            width: 70%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #f00;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #ff3333;
+        }
+        select {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        @media (max-width: 600px) {
+            input { width: 65%; }
+            button { padding: 10px; }
+            #chatbox { height: 300px; }
+        }
+    </style>
 </head>
 <body>
-<h1>ALICE BOT</h1>
-<label for="modelSelect">Choose AI Model:</label>
-<select id="modelSelect">
-    <option value="qwen/qwen-2.5-coder-32b-instruct:free" selected>Qwen 2.5 Coder 32B (Free)</option>
-    <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">Dolphin Mistral 24B Venice (Free)</option>
-    <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
-    <option value="mistralai/mistral-7b-instruct">Mistral 7B (Free)</option>
-</select>
-<div id="chatbox"></div>
-<input type="text" id="userInput" placeholder="Type your message...">
-<button onclick="sendMessage()">Send</button>
-<button id="sttButton">🎤 Start Listening</button>
-<button onclick="stopSpeaking()">Stop TTS</button>
+    <h1>ALICE BOT</h1>
+    <label for="modelSelect">Choose AI Model:</label>
+    <select id="modelSelect">
+        <option value="qwen/qwen-2.5-coder-32b-instruct:free" selected>Qwen 2.5 Coder 32B (Free)</option>
+        <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">Dolphin Mistral 24B Venice (Free)</option>
+        <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
+        <option value="mistralai/mistral-7b-instruct">Mistral 7B (Free)</option>
+    </select>
+    <div id="chatbox"></div>
+    <input type="text" id="userInput" placeholder="Type your message...">
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="stopSpeech()">Stop TTS</button>
+    <script>
+        let synth = window.speechSynthesis;
+        let currentUtterance = null;
 
-<script>
-let isSpeaking = false;
-let voices = [];
-
-speechSynthesis.onvoiceschanged = () => {
-    voices = speechSynthesis.getVoices();
-};
-
-function speakText(text) {
-    stopSpeaking();
-    if (!voices.length) voices = speechSynthesis.getVoices();
-    let voice = voices.find(v => v.name.toLowerCase().includes('male')) || voices[0];
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = voice;
-    utterance.pitch = 0.5;
-    utterance.rate = 0.85;
-    const chatbox = document.getElementById('chatbox');
-    utterance.onstart = () => {
-        isSpeaking = true;
-        chatbox.classList.add('speaking');
-    };
-    utterance.onend = () => {
-        isSpeaking = false;
-        chatbox.classList.remove('speaking');
-    };
-    speechSynthesis.speak(utterance);
-}
-
-function stopSpeaking() {
-    if (speechSynthesis.speaking) {
-        speechSynthesis.cancel();
-        isSpeaking = false;
-        document.getElementById('chatbox').classList.remove('speaking');
-    }
-}
-
-document.body.addEventListener('click', () => { voices = speechSynthesis.getVoices(); }, { once: true });
-
-function addMessage(text, type) {
-    const chatbox = document.getElementById('chatbox');
-    const msg = document.createElement('p');
-    msg.textContent = text;
-    msg.className = type;
-    chatbox.appendChild(msg);
-    chatbox.scrollTop = chatbox.scrollHeight;
-}
-
-document.getElementById('userInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') sendMessage();
-});
-
-async function sendMessage(userInputValue = null) {
-    const inputEl = document.getElementById('userInput');
-    const input = userInputValue || inputEl.value;
-    const modelSelect = document.getElementById('modelSelect');
-    let model = modelSelect.value;
-    if (!input) return;
-    addMessage('You: ' + input, 'user');
-    inputEl.value = '';
-
-    try {
-        let response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: input, model })
-        });
-        if (!response.ok) throw new Error('Chat API error');
-        const data = await response.json();
-        const reply = data.choices[0].message.content;
-        addMessage('ALICE: ' + reply, 'ai');
-        speakText(reply);
-    } catch (err) {
-        addMessage('Error: switching model and retrying...', 'ai');
-        // auto switch model
-        if (modelSelect.selectedIndex < modelSelect.options.length - 1) {
-            modelSelect.selectedIndex += 1;
-        } else {
-            modelSelect.selectedIndex = 0;
+        function addMessage(text, type) {
+            const chatbox = document.getElementById('chatbox');
+            const msg = document.createElement('p');
+            msg.textContent = text;
+            msg.className = type;
+            chatbox.appendChild(msg);
+            chatbox.scrollTop = chatbox.scrollHeight;
         }
-        setTimeout(() => sendMessage(input), 500);
-    }
-}
-</script>
+
+        function speakText(text) {
+            if (synth.speaking) synth.cancel();
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.voice = synth.getVoices().find(v => v.lang.includes('en')) || null;
+            currentUtterance.pitch = 0.7; // deeper voice
+            currentUtterance.rate = 0.9;
+            synth.speak(currentUtterance);
+        }
+
+        function stopSpeech() {
+            if (synth.speaking) synth.cancel();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('userInput').value;
+            const model = document.getElementById('modelSelect').value;
+            if (!input) return;
+            addMessage('You: ' + input, 'user');
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: input, model: model })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error?.message || response.status); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                const reply = data.choices[0].message.content;
+                addMessage('ALICE: ' + reply, 'ai');
+                speakText(reply);
+            })
+            .catch(error => addMessage('Error: ' + error.message, 'ai'));
+            document.getElementById('userInput').value = '';
+        }
+
+        document.getElementById('userInput').addEventListener('keypress', function(e){
+            if(e.key === 'Enter') sendMessage();
+        });
+    </script>
 </body>
 </html>
