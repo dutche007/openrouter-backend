@@ -6,97 +6,95 @@
 <title>ALICE BOT</title>
 <style>
     body {
-        font-family: 'Orbitron', Arial, sans-serif;
+        font-family: 'Courier New', Courier, monospace;
         max-width: 800px;
         margin: auto;
         padding: 20px;
-        background-color: black;
-        color: #ff4d4d;
-        text-shadow: 0 0 8px #ff0000;
+        background-color: #000;
+        color: #f00;
     }
     h1 {
         text-align: center;
-        color: #ff4d4d;
-        text-shadow: 0 0 15px #ff0000, 0 0 30px #ff3333;
+        color: #ff1a1a;
     }
-    #chatbox {
-        border: 2px solid #ff1a1a;
-        height: 400px;
-        overflow-y: scroll;
-        padding: 15px;
-        background-color: #111;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        transition: box-shadow 0.3s ease-in-out;
-    }
-    #chatbox.speaking {
-        box-shadow: 0 0 25px #ff0000, 0 0 50px #ff1a1a;
-    }
-    .message {
-        margin: 5px 0;
-        padding: 10px 12px;
-        border-radius: 8px;
-        max-width: 70%;
-        clear: both;
-        font-size: 1rem;
-    }
-    .user {
-        background-color: #222;
-        color: #ff6666;
-        border: 1px solid #ff3333;
-        float: right;
-        text-align: right;
-    }
-    .ai {
-        background-color: #330000;
-        color: #ffcccc;
-        border: 1px solid #ff4d4d;
-        float: left;
-    }
-    #controls {
-        display: flex;
-        gap: 10px;
-        margin-top: 10px;
-        flex-wrap: wrap;
-    }
-    input {
-        flex: 1;
-        padding: 10px;
-        border: 1px solid #ff3333;
-        border-radius: 5px;
-        background: #111;
-        color: #ff4d4d;
-    }
-    button {
-        padding: 10px 20px;
-        background-color: #330000;
-        color: #ff4d4d;
-        border: 1px solid #ff3333;
-        border-radius: 5px;
-        cursor: pointer;
-        text-shadow: 0 0 8px #ff0000;
-    }
-    button:hover {
-        background-color: #550000;
-        box-shadow: 0 0 10px #ff0000;
-    }
-    select {
+    #modelSelect {
         padding: 10px;
         border-radius: 5px;
         margin-bottom: 10px;
         width: 100%;
-        background: #111;
-        color: #ff4d4d;
-        border: 1px solid #ff3333;
+        background-color: #111;
+        color: #f00;
+        border: 1px solid #f00;
+    }
+    #chatbox {
+        border: 3px solid #f00;
+        height: 400px;
+        overflow-y: scroll;
+        padding: 15px;
+        background-color: #111;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        transition: box-shadow 0.3s, border-color 0.3s;
+    }
+    #chatbox.speaking {
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 60px #ff0000;
+            border-color: #ff1a1a;
+        }
+        50% {
+            box-shadow: 0 0 40px #ff0000, 0 0 80px #ff0000, 0 0 120px #ff0000;
+            border-color: #ff4d4d;
+        }
+        100% {
+            box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 60px #ff0000;
+            border-color: #ff1a1a;
+        }
+    }
+    #chatbox p {
+        margin: 5px 0;
+        padding: 8px;
+        border-radius: 5px;
+    }
+    #chatbox p.user {
+        background-color: #330000;
+        text-align: right;
+        color: #ff6666;
+    }
+    #chatbox p.ai {
+        background-color: #111;
+        color: #ff1a1a;
+    }
+    input {
+        width: 60%;
+        padding: 10px;
+        border: 1px solid #f00;
+        border-radius: 5px;
+        margin-right: 10px;
+        background-color: #000;
+        color: #f00;
+    }
+    button {
+        padding: 10px 20px;
+        background-color: #111;
+        color: #f00;
+        border: 1px solid #f00;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #330000;
     }
     @media (max-width: 600px) {
+        input { width: 55%; }
         #chatbox { height: 300px; }
     }
 </style>
 </head>
 <body>
 <h1>ALICE BOT</h1>
-
 <label for="modelSelect">Choose AI Model:</label>
 <select id="modelSelect">
     <option value="qwen/qwen-2.5-coder-32b-instruct:free" selected>Qwen 2.5 Coder 32B (Free)</option>
@@ -104,112 +102,28 @@
     <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
     <option value="mistralai/mistral-7b-instruct">Mistral 7B (Free)</option>
 </select>
-
 <div id="chatbox"></div>
-
-<div id="controls">
-    <input type="text" id="userInput" placeholder="Type your message...">
-    <button onclick="sendMessage()">Send</button>
-    <button onclick="resetChat()">Clear</button>
-    <button onclick="stopSpeaking()">Stop Voice</button>
-    <button onclick="startListening()">🎤 Speak</button>
-    <button onclick="stopListening()">✖ Stop Listening</button>
-</div>
+<input type="text" id="userInput" placeholder="Type your message...">
+<button onclick="sendMessage()">Send</button>
+<button id="sttButton">🎤 Start Listening</button>
+<button onclick="stopSpeaking()">Stop TTS</button>
 
 <script>
-let sessionId = Date.now().toString();
 let isSpeaking = false;
-let recognition;
+let voices = [];
 
-// --- Initialize Speech Recognition if available ---
-if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.continuous = false;
-
-    recognition.onresult = function(event) {
-        const speechText = event.results[0][0].transcript;
-        document.getElementById('userInput').value = speechText;
-        sendMessage();
-    };
-
-    recognition.onerror = function(event) { console.error('Speech recognition error', event.error); };
-} else {
-    console.warn("Speech Recognition not supported in this browser.");
-}
-
-// --- STT controls ---
-function startListening() { recognition?.start(); }
-function stopListening() { recognition?.stop(); }
-
-// --- Chat & TTS ---
-async function sendMessage(retryInput) {
-    const inputEl = document.getElementById('userInput');
-    let text = retryInput || inputEl.value.trim();
-    if (!text) return;
-
-    if (!retryInput) addMessage(text, 'user');
-    inputEl.value = '';
-
-    const chatbox = document.getElementById('chatbox');
-    const typingIndicator = addMessage('AI is typing...', 'ai');
-
-    const modelSelect = document.getElementById('modelSelect');
-
-    try {
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: text, model: modelSelect.value, sessionId })
-        });
-        const data = await res.json();
-
-        typingIndicator.remove();
-
-        if (!res.ok) throw new Error(data.error || 'Unknown error');
-
-        let reply = data.choices[0].message.content;
-        if (reply.length > 200) reply = reply.split('. ')[0] + '.';
-        addMessage(reply, 'ai');
-        speakText(reply);
-
-    } catch (err) {
-        console.error(err);
-        typingIndicator.remove();
-
-        // Switch to next model in select
-        const options = [...modelSelect.options];
-        const currentIndex = options.findIndex(opt => opt.value === modelSelect.value);
-        const nextIndex = (currentIndex + 1) % options.length;
-        modelSelect.selectedIndex = nextIndex;
-
-        addMessage(`Error encountered. Switching model to ${modelSelect.value} and retrying...`, 'ai');
-        sendMessage(text); // Retry same user input
-    }
-}
-
-function addMessage(text, type) {
-    const chatbox = document.getElementById('chatbox');
-    const msg = document.createElement('div');
-    msg.textContent = text;
-    msg.className = 'message ' + type;
-    chatbox.appendChild(msg);
-    chatbox.scrollTop = chatbox.scrollHeight;
-    return msg;
-}
+speechSynthesis.onvoiceschanged = () => {
+    voices = speechSynthesis.getVoices();
+};
 
 function speakText(text) {
     stopSpeaking();
-    const voices = speechSynthesis.getVoices();
+    if (!voices.length) voices = speechSynthesis.getVoices();
     let voice = voices.find(v => v.name.toLowerCase().includes('male')) || voices[0];
-
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice;
     utterance.pitch = 0.5;
     utterance.rate = 0.85;
-
     const chatbox = document.getElementById('chatbox');
     utterance.onstart = () => {
         isSpeaking = true;
@@ -219,30 +133,63 @@ function speakText(text) {
         isSpeaking = false;
         chatbox.classList.remove('speaking');
     };
-
     speechSynthesis.speak(utterance);
 }
 
 function stopSpeaking() {
     if (speechSynthesis.speaking) {
         speechSynthesis.cancel();
-        document.getElementById('chatbox').classList.remove('speaking');
         isSpeaking = false;
+        document.getElementById('chatbox').classList.remove('speaking');
     }
 }
 
-function resetChat() {
-    document.getElementById('chatbox').innerHTML = '';
-    stopSpeaking();
+document.body.addEventListener('click', () => { voices = speechSynthesis.getVoices(); }, { once: true });
+
+function addMessage(text, type) {
+    const chatbox = document.getElementById('chatbox');
+    const msg = document.createElement('p');
+    msg.textContent = text;
+    msg.className = type;
+    chatbox.appendChild(msg);
+    chatbox.scrollTop = chatbox.scrollHeight;
 }
 
-// --- Enter key submit, shift+Enter for new line ---
-document.getElementById('userInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
+document.getElementById('userInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') sendMessage();
 });
+
+async function sendMessage(userInputValue = null) {
+    const inputEl = document.getElementById('userInput');
+    const input = userInputValue || inputEl.value;
+    const modelSelect = document.getElementById('modelSelect');
+    let model = modelSelect.value;
+    if (!input) return;
+    addMessage('You: ' + input, 'user');
+    inputEl.value = '';
+
+    try {
+        let response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: input, model })
+        });
+        if (!response.ok) throw new Error('Chat API error');
+        const data = await response.json();
+        const reply = data.choices[0].message.content;
+        addMessage('ALICE: ' + reply, 'ai');
+        speakText(reply);
+    } catch (err) {
+        addMessage('Error: switching model and retrying...', 'ai');
+        // auto switch model
+        if (modelSelect.selectedIndex < modelSelect.options.length - 1) {
+            modelSelect.selectedIndex += 1;
+        } else {
+            modelSelect.selectedIndex = 0;
+        }
+        setTimeout(() => sendMessage(input), 500);
+    }
+}
 </script>
 </body>
 </html>
