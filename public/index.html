@@ -119,7 +119,9 @@
                 typingIndicator.remove();
 
                 if (res.ok) {
-                    addMessage(data.choices[0].message.content, 'ai');
+                    const reply = data.choices[0].message.content;
+                    addMessage(reply, 'ai');
+                    speakText(reply); // 🔊 speak the AI reply
                 } else {
                     addMessage('Error: ' + (data.error || 'Unknown error'), 'ai');
                 }
@@ -137,6 +139,13 @@
             chatbox.appendChild(msg);
             chatbox.scrollTop = chatbox.scrollHeight;
             return msg;
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.1;
+            utterance.pitch = 1;
+            speechSynthesis.speak(utterance);
         }
 
         async function resetChat() {
