@@ -119,57 +119,75 @@
 <script>
 let sessionId = Date.now().toString();
 let isSpeaking = false;
+let recognition;
 
-// --- Speech-to-Text ---
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = new SpeechRecognition();
-recognition.lang = 'en-US';
-recognition.interimResults = false;
-recognition.continuous = false;
+// --- Initialize Speech Recognition if available ---
+if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.continuous = false;
 
-function startListening() { recognition.start(); }
-function stopListening() { recognition.stop(); }
+    recognition.onresult = function(event) {
+        const speechText = event.results[0][0].transcript;
+        document.getElementById('userInput').value = speechText;
+        sendMessage();
+    };
 
-recognition.onresult = function(event) {
-    const speechText = event.results[0][0].transcript;
-    document.getElementById('userInput').value = speechText;
-    sendMessage();
-};
+    recognition.onerror = function(event) { console.error('Speech recognition error', event.error); };
+    recognition.onend = function() { /* auto-restart disabled for manual control */ };
+} else {
+    console.warn("Speech Recognition not supported in this browser.");
+}
 
-recognition.onerror = function(event) { console.error('Speech recognition error', event.error); };
+// --- STT controls ---
+function startListening() { recognition?.start(); }
+function stopListening() { recognition?.stop(); }
 
 // --- Chat & TTS ---
 async function sendMessage() {
     const input = document.getElementById('userInput');
-    const text = input.value.trim();
-    const model = document.getElementById('modelSelect').value;
+    let text = input.value.trim();
     if (!text) return;
 
     addMessage(text, 'user');
     input.value = '';
 
+    const chatbox = document.getElementById('chatbox');
     const typingIndicator = addMessage('AI is typing...', 'ai');
 
+    let modelSelect = document.getElementById('modelSelect');
+
     try {
-        const res = await fetch('/api/chat', {
+        let res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: text, model: model, sessionId })
+            body: JSON.stringify({ prompt: text, model: modelSelect.value, sessionId })
         });
-        const data = await res.json();
+        let data = await res.json();
+
         typingIndicator.remove();
 
-        if (res.ok) {
-            let reply = data.choices[0].message.content;
-            if (reply.length > 200) reply = reply.split('. ')[0] + '.';
-            addMessage(reply, 'ai');
-            speakText(reply);
-        } else {
-            addMessage('Error: ' + (data.error || 'Unknown error'), 'ai');
-        }
+        if (!res.ok) throw new Error(data.error || 'Unknown error');
+
+        let reply = data.choices[0].message.content;
+        if (reply.length > 200) reply = reply.split('. ')[0] + '.';
+        addMessage(reply, 'ai');
+        speakText(reply);
+
     } catch (err) {
+        console.error(err);
         typingIndicator.remove();
-        addMessage('Error: ' + err.message, 'ai');
+
+        // Switch to next model in select
+        const options = [...modelSelect.options];
+        const currentIndex = options.findIndex(opt => opt.value === modelSelect.value);
+        const nextIndex = (currentIndex + 1) % options.length;
+        modelSelect.selectedIndex = nextIndex;
+
+        addMessage(`Error encountered. Switching model to ${modelSelect.value} and retrying...`, 'ai');
+        sendMessage();
     }
 }
 
@@ -214,7 +232,7 @@ function stopSpeaking() {
     }
 }
 
-async function resetChat() {
+function resetChat() {
     document.getElementById('chatbox').innerHTML = '';
     stopSpeaking();
 }
