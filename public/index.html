@@ -21,7 +21,16 @@
             background-color: #111;
             border-radius: 8px;
             margin-bottom: 10px;
-            box-shadow: 0 0 20px #f00 inset;
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        #chatbox.talking {
+            box-shadow: 0 0 20px 5px red;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 10px 2px red; }
+            50% { box-shadow: 0 0 30px 8px red; }
+            100% { box-shadow: 0 0 10px 2px red; }
         }
         #chatbox p {
             margin: 5px 0;
@@ -33,7 +42,7 @@
             text-align: right;
         }
         #chatbox p.ai {
-            background-color: #111;
+            background-color: #222;
         }
         input {
             width: 70%;
@@ -41,6 +50,8 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             margin-right: 10px;
+            background-color: #111;
+            color: #fff;
         }
         button {
             padding: 10px 20px;
@@ -51,13 +62,16 @@
             cursor: pointer;
         }
         button:hover {
-            background-color: #ff3333;
+            background-color: #c00;
         }
         select {
             padding: 10px;
             border-radius: 5px;
             margin-bottom: 10px;
             width: 100%;
+            background-color: #111;
+            color: #fff;
+            border: 1px solid red;
         }
         @media (max-width: 600px) {
             input { width: 65%; }
@@ -74,14 +88,24 @@
         <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">Dolphin Mistral 24B Venice (Free)</option>
         <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
         <option value="mistralai/mistral-7b-instruct">Mistral 7B (Free)</option>
+        <option value="angel-slim/deepseek-r1-0528:free">DeepSeek R1 0528 (Free)</option>
+        <option value="angel-slim/deepseek-v3-0324:free">DeepSeek V3 0324 (Free)</option>
+        <option value="angel-slim/deepseek-chat-v3-0324:free">DeepSeek Chat V3 0324 (Free)</option>
+        <option value="meta-llama/llama-4-maverick:free">Meta LLaMA 4 Maverick (Free)</option>
+        <option value="qwen/qwen3-235b-a22b:free">Qwen3 235B A22B (Free)</option>
+        <option value="openai/gpt-oss-120b:free">GPT-OSS 120B (Free)</option>
+        <option value="openai/gpt-oss-20b:free">GPT-OSS 20B (Free)</option>
     </select>
     <div id="chatbox"></div>
     <input type="text" id="userInput" placeholder="Type your message...">
     <button onclick="sendMessage()">Send</button>
-    <button onclick="stopSpeech()">Stop TTS</button>
+    <button id="stopTTS">Stop TTS</button>
+
     <script>
         let synth = window.speechSynthesis;
-        let currentUtterance = null;
+        let utterance;
+        let recognizing = false;
+        let recognition;
 
         function addMessage(text, type) {
             const chatbox = document.getElementById('chatbox');
@@ -92,47 +116,66 @@
             chatbox.scrollTop = chatbox.scrollHeight;
         }
 
-        function speakText(text) {
-            if (synth.speaking) synth.cancel();
-            currentUtterance = new SpeechSynthesisUtterance(text);
-            currentUtterance.voice = synth.getVoices().find(v => v.lang.includes('en')) || null;
-            currentUtterance.pitch = 0.7; // deeper voice
-            currentUtterance.rate = 0.9;
-            synth.speak(currentUtterance);
-        }
-
-        function stopSpeech() {
-            if (synth.speaking) synth.cancel();
-        }
-
         function sendMessage() {
-            const input = document.getElementById('userInput').value;
+            const inputEl = document.getElementById('userInput');
+            const input = inputEl.value;
             const model = document.getElementById('modelSelect').value;
             if (!input) return;
             addMessage('You: ' + input, 'user');
+            inputEl.value = '';
+
+            const chatboxEl = document.getElementById('chatbox');
+            chatboxEl.classList.add('talking');
+
             fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: input, model: model })
             })
-            .then(response => {
+            .then(async response => {
                 if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.error?.message || response.status); });
+                    throw new Error('API Error');
                 }
                 return response.json();
             })
             .then(data => {
-                const reply = data.choices[0].message.content;
-                addMessage('ALICE: ' + reply, 'ai');
-                speakText(reply);
+                const reply = data.choices?.[0]?.message?.content || "No response";
+                addMessage('Alice: ' + reply, 'ai');
+
+                utterance = new SpeechSynthesisUtterance(reply);
+                utterance.lang = 'en-US';
+                utterance.rate = 1;
+                utterance.pitch = 0.8;
+                utterance.onend = () => chatboxEl.classList.remove('talking');
+                synth.speak(utterance);
             })
-            .catch(error => addMessage('Error: ' + error.message, 'ai'));
-            document.getElementById('userInput').value = '';
+            .catch(error => {
+                addMessage('Error: ' + error.message, 'ai');
+                chatboxEl.classList.remove('talking');
+            });
         }
 
-        document.getElementById('userInput').addEventListener('keypress', function(e){
-            if(e.key === 'Enter') sendMessage();
+        document.getElementById('stopTTS').addEventListener('click', () => {
+            synth.cancel();
+            document.getElementById('chatbox').classList.remove('talking');
         });
+
+        // Enter key sends message
+        document.getElementById('userInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Optional STT (speech-to-text)
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            recognition.onresult = (event) => {
+                document.getElementById('userInput').value = event.results[0][0].transcript;
+                sendMessage();
+            };
+        }
     </script>
 </body>
 </html>
