@@ -47,8 +47,12 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: "Prompt, model, and sessionId are required" });
         }
 
-        // Initialize chat history if needed
-        if (!chats[sessionId]) chats[sessionId] = [];
+        // Initialize chat history if needed with system instruction
+        if (!chats[sessionId]) {
+            chats[sessionId] = [
+                { role: 'system', content: 'You are a friendly, conversational assistant. Keep answers short and casual unless the user asks for more detail.' }
+            ];
+        }
 
         // Add user message
         chats[sessionId].push({ role: 'user', content: prompt });
@@ -61,7 +65,7 @@ app.post('/api/chat', async (req, res) => {
             {
                 model: model,
                 messages: chats[sessionId],
-                stream: false // full reply for now
+                stream: false
             },
             {
                 headers: {
