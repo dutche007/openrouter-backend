@@ -72,17 +72,17 @@ app.post('/api/chat', async (req, res) => {
       'meta-llama/llama-3.3-70b-instruct:free'
     ];
 
-    let userPromptContent = sanitizedPrompt;
-    if (reasoningModels.includes(model)) {
-        userPromptContent = `
-            You are ALICE BOT. Your task is to respond to the user's request.
-            First, take a moment to think through your response step-by-step.
-            Describe your thought process clearly and concisely.
-            Then, provide your final response to the user.
-            Here is the user's message:
-            ${sanitizedPrompt}
-        `;
-    }
+let userPromptContent = sanitizedPrompt;
+if (reasoningModels.includes(model)) {
+    userPromptContent = `
+        You are ALICE BOT. Your task is to respond to the user's request.
+        First, take a moment to think through your response step-by-step.
+        Describe your thought process clearly and concisely.
+        After your thoughts, include the unique phrase [FINAL RESPONSE] followed by your final answer to the user.
+        Here is the user's message:
+        ${sanitizedPrompt}
+    `;
+}
     
     // --- Guardrail for repeated greetings (optional, but a good practice) ---
     // You can uncomment this block if you want to use it
