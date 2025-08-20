@@ -1,70 +1,66 @@
 import express from "express";
-import bodyParser from "body-parser";
+import cors from "cors";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
-app.use(bodyParser.json());
-app.use(express.static("public"));
+app.use(cors());
+app.use(express.json());
 
+const PORT = process.env.PORT || 10000;
+
+// --- Chat endpoint ---
 app.post("/api/chat", async (req, res) => {
   const { prompt, model, sessionId } = req.body;
 
   try {
-    let apiUrl, headers, body;
+    let apiUrl = "";
+    let headers = {};
+    let body = {};
 
     if (model === "gemini") {
-      apiUrl =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent";
+      // Google Gemini API
+      apiUrl = "https://generativelanguage.googleapis.com/v1beta2/models/chat-bison-001:generateMessage";
       headers = {
         "Content-Type": "application/json",
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
+        "Authorization": `Bearer ${process.env.GEMINI_API_KEY}`,
       };
       body = JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        prompt: { text: prompt },
+        temperature: 0.7,
+        candidateCount: 1,
       });
     } else {
-      apiUrl = "https://openrouter.ai/api/v1/chat/completions";
+      // OpenRouter API
+      apiUrl = "https://openrouter.ai/v1/chat/completions";
       headers = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
       };
       body = JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        provider: { order: ["openai", "anthropic"] },
-        session_id: sessionId,
+        session: sessionId,
       });
     }
 
     const response = await fetch(apiUrl, { method: "POST", headers, body });
     const data = await response.json();
 
-    if (!response.ok) {
-      console.error("Server Error:", data);
-      return res.status(500).json({ error: data.error || "Unknown error" });
-    }
-
-    let reply;
+    // --- Extract reply based on API ---
+    let reply = "";
     if (model === "gemini") {
-      reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "(No response)";
+      reply = data?.candidates?.[0]?.content?.[0]?.text || "No reply from Gemini.";
     } else {
-      reply = data.choices?.[0]?.message?.content || "(No response)";
+      reply = data?.choices?.[0]?.message?.content || "No reply from OpenRouter.";
     }
 
-    res.json({
-      choices: [{ message: { content: reply } }],
-    });
-
-    console.log(`[${new Date().toISOString()}] ${model}: ${prompt}`);
+    res.json({ choices: [{ message: { content: reply } }] });
   } catch (err) {
-    console.error("Server Error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error(err);
+    res.status(500).json({ error: { message: err.message } });
   }
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
