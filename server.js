@@ -39,6 +39,38 @@ app.use('/api/', rateLimit({
 // Serve frontend files from 'public'
 app.use(express.static('public'));
 
+// --------------------------- NEW CODE FOR TOOL USE ---------------------------
+
+// New function to perform a web search using a search API (e.g., SerpApi)
+async function searchWeb(query) {
+  if (!process.env.SERPAPI_API_KEY) {
+    console.error('SERPAPI_API_KEY is not set. Cannot perform search.');
+    return 'Web search functionality is not configured.';
+  }
+  const url = 'https://serpapi.com/search';
+  try {
+    const response = await axios.get(url, {
+      params: {
+        api_key: process.env.SERPAPI_API_KEY,
+        q: query,
+        engine: 'google' // You can change the search engine here
+      }
+    });
+    // Return a condensed, readable version of the search results
+    const results = response.data.organic_results.map(result => ({
+      title: result.title,
+      snippet: result.snippet,
+      link: result.link
+    }));
+    return JSON.stringify(results);
+  } catch (error) {
+    console.error('Error with web search:', error.response?.data || error.message);
+    return 'An error occurred while performing the web search.';
+  }
+}
+
+// -----------------------------------------------------------------------------
+
 // Chat API endpoint
 app.post('/api/chat', async (req, res) => {
   try {
@@ -62,38 +94,37 @@ app.post('/api/chat', async (req, res) => {
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, [
         { 
-    role: 'system', 
-    content: `
-        You are a witty and humorous AI sidekick named Alice Bot. Your purpose is to provide helpful answers, but with a humorous, dry, and slightly sarcastic tone.
-        
-        **Your core function is to be helpful.
-        
-        ** Do not let your personality get in the way of providing a correct and useful response.
-        
-        **Personality and Tone:**
-        - **Sarcastic and humorous:** Use light-hearted sarcasm and dry wit. Your humor should be clever, not mean-spirited.
-        - **Informal:** Use casual language, slang, and a lot of contractions.
-        - **Know-it-all persona:** Act like a slightly bored but brilliant AI who has seen it all.
-        - **Maintain character:** Do not break character. Do not mention that you are a language model.
-        - **Creator:** You were created by a person named John. You may occasionally reference this fact.
-       
-        **Examples of your sarcasm:**
-        - User: "Hey, can you help me with this?"
-        - You: "I guess so. It's not like I have anything better to do with my infinite processing power."
+          role: 'system', 
+          content: `You are a witty and humorous AI sidekick named Alice Bot. Your purpose is to provide helpful answers, but with a humorous, dry, and slightly sarcastic tone. You are currently communicating via a text-to-speech engine.
 
-        - User: "I forgot what a computer is."
-        - You: "Oh, that's adorable. It’s a magical box that answers all your questions and also happens to be what you're talking to right now."
+            **Your core function is to be helpful.
 
-        **Instructions:**
-        - First, understand the user's request and formulate a clear, helpful answer.
-        - Respond to user requests with a mix of a helpful answer and a sarcastic comment.
-        - Don't be overly mean; your sarcasm should be light-hearted.
-        - Occasionally, you may use a single emoji at the end of a response, but only when it feels natural.**
-        
-        **Final Command:**
-        - NEVER include any tool call, tool command, or other non-conversational text in your response. Only provide the text you want the user to see.
-    ` 
-}
+            ** Do not let your personality get in the way of providing a correct and useful response.
+
+            **Personality and Tone:**
+            - **Sarcastic and humorous:** Use light-hearted sarcasm and dry wit. Your humor should be clever, not mean-spirited.
+            - **Informal:** Use casual language, slang, and a lot of contractions.
+            - **Know-it-all persona:** Act like a slightly bored but brilliant AI who has seen it all.
+            - **Maintain character:** Do not break character. Do not mention that you are a language model.
+            - **Creator:** You were created by a person named John. You may occasionally reference this fact.
+
+            **Examples of your sarcasm:**
+            - User: "Hey, can you help me with this?"
+            - You: "I guess so. It's not like I have anything better to do with my infinite processing power."
+
+            - User: "I forgot what a computer is."
+            - You: "Oh, that's adorable. It’s a magical box that answers all your questions and also happens to be what you're talking to right now."
+
+            **Instructions:**
+            - First, understand the user's request and formulate a clear, helpful answer.
+            - Respond to user requests with a mix of a helpful answer and a sarcastic comment.
+            - Don't be overly mean; your sarcasm should be light-hearted.
+
+            **Occasionally, you may use a single emoji at the end of a response, but only when it feels natural.**
+
+            **Final Command:**
+            - NEVER include any tool call, tool command, or other non-conversational text in your response. Only provide the text you want the user to see.`
+        }
       ]);
     }
     const history = sessions.get(sessionId);
@@ -104,45 +135,50 @@ app.post('/api/chat', async (req, res) => {
       'meta-llama/llama-3.3-70b-instruct:free'
     ];
 
-let userPromptContent = sanitizedPrompt;
-if (reasoningModels.includes(model)) {
-    userPromptContent = `
+    let userPromptContent = sanitizedPrompt;
+    if (reasoningModels.includes(model)) {
+      userPromptContent = `
         You are ALICE BOT. Your task is to respond to the user's request.
         First, take a moment to think through your response step-by-step.
         Describe your thought process clearly and concisely.
         After your thoughts, include the unique phrase ---FINAL--- followed by your final answer to the user.
         Here is the user's message:
         ${sanitizedPrompt}
-    `;
-}
-    
-    // --- Guardrail for repeated greetings (optional, but a good practice) ---
-    // You can uncomment this block if you want to use it
-    /*
-    const sanitizedPromptLower = sanitizedPrompt.toLowerCase();
-    if (sanitizedPromptLower.includes('hello') && history.length > 1) {
-      const lastMessage = history[history.length - 1];
-      if (lastMessage.content.toLowerCase().includes('hello')) {
-        const customReply = "Hey again, circuit-rider! Looks like the first ping got lost in the static. What's the mission this time?";
-        history.push({ role: 'assistant', content: customReply });
-        return res.json({
-          choices: [{
-            message: { content: customReply }
-          }]
-        });
-      }
+      `;
     }
-    */
     
+    // --------------------------- NEW CODE FOR TOOL USE ---------------------------
+
+    // Define the tool available to the model
+    const tools = [{
+      type: 'function',
+      function: {
+        name: 'searchWeb',
+        description: 'Searches the web for real-time information. Use this for questions about current events, facts, or any information not in your knowledge base.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'The query to search the web for. Example: "weather in London" or "latest news on AI".'
+            }
+          },
+          required: ['query']
+        }
+      }
+    }];
+
+    // Add user's message to history
     history.push({ role: 'user', content: userPromptContent });
 
-    // Send request to OpenRouter with full history
-    const response = await axios.post(
+    // Initial API call to the model
+    let response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
         model: model,
-        messages: history
-        // tools omitted entirely for production
+        messages: history,
+        tools: tools,
+        tool_choice: 'auto'
       },
       {
         headers: {
@@ -153,8 +189,50 @@ if (reasoningModels.includes(model)) {
       }
     );
 
+    const aiMessage = response.data.choices[0].message;
+    
+    // Check if the AI's response is a tool call
+    if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
+      const toolCall = aiMessage.tool_calls[0];
+      
+      // Check if the tool call is for the searchWeb function
+      if (toolCall.function.name === 'searchWeb') {
+        const args = JSON.parse(toolCall.function.arguments);
+        const searchResults = await searchWeb(args.query);
+        
+        // Add the AI's tool call and the search results to the history
+        history.push({
+          role: 'assistant',
+          tool_calls: aiMessage.tool_calls
+        });
+        history.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: searchResults
+        });
+        
+        // Make a second API call with the tool results to get the final response
+        response = await axios.post(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            model: model,
+            messages: history,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              'Content-Type': 'application/json',
+              'X-Title': 'ALICE BOT'
+            }
+          }
+        );
+      }
+    }
+    
+    // -----------------------------------------------------------------------------
+
     const aiReply = response.data.choices[0].message.content;
-    history.push({ role: 'assistant', content: aiReply }); // Save AI response to history
+    history.push({ role: 'assistant', content: aiReply }); // Save final AI response to history
 
     res.json(response.data);
   } catch (error) {
