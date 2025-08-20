@@ -1,46 +1,31 @@
 import express from "express";
+import fetch from "node-fetch";
+import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
-import dotenv from "dotenv";
-import fetch from "node-fetch"; // Make sure node-fetch is installed
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Detect static folder: build or public
-const buildPath = path.join(process.cwd(), "build");
-const publicPath = path.join(process.cwd(), "public");
-const staticPath = fs.existsSync(buildPath) ? buildPath : publicPath;
-
-// Serve static files
+// Serve static files from public folder
+const staticPath = path.join(process.cwd(), "public");
 app.use(express.static(staticPath));
 
-// Example API route (adjust based on your existing code)
-app.post("/api/some-endpoint", async (req, res) => {
-  try {
-    const response = await fetch("https://example.com/api", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req.body),
-    });
-
-    const data = await response.json();
-    res.json(data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong" });
-  }
+// Example API route
+app.get("/api/ping", (req, res) => {
+  res.json({ message: "pong" });
 });
 
-// Catch-all for React Router
+// Catch-all route to serve index.html
 app.get("*", (req, res) => {
-  res.sendFile(path.join(staticPath, "index.html"));
+  const indexFile = path.join(staticPath, "index.html");
+  if (fs.existsSync(indexFile)) {
+    res.sendFile(indexFile);
+  } else {
+    res.status(404).send("index.html not found");
+  }
 });
 
 app.listen(PORT, () => {
