@@ -1,33 +1,55 @@
-import express from "express";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
-import path from "path";
-import fs from "fs";
+// server.js
+const express = require('express');
+const axios = require('axios');
+const dotenv = require('dotenv');
+const cors = require('cors');
 
 dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 10000;
 
-// Serve static files from public folder
-const staticPath = path.join(process.cwd(), "public");
-app.use(express.static(staticPath));
+// Enable CORS for all routes
+app.use(cors());
 
-// Example API route
-app.get("/api/ping", (req, res) => {
-  res.json({ message: "pong" });
+// Parse JSON requests
+app.use(express.json());
+
+// Serve frontend files from 'public'
+app.use(express.static('public'));
+
+// Chat API endpoint
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { prompt, model } = req.body;
+
+        // Validate input
+        if (!prompt || !model) {
+            return res.status(400).json({ error: "Prompt and model are required" });
+        }
+
+        // Send request to OpenRouter
+        const response = await axios.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+                model: model,
+                messages: [{ role: 'user', content: prompt }]
+                // tools omitted entirely for production
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'X-Title': 'My AI Chat App'
+                }
+            }
+        );
+
+        res.json(response.data);
+    } catch (error) {
+        console.error('Server Error:', error.response?.data || error.message);
+        res.status(500).json({ error: error.response?.data?.error?.message || error.message });
+    }
 });
 
-// Catch-all route to serve index.html
-app.get("*", (req, res) => {
-  const indexFile = path.join(staticPath, "index.html");
-  if (fs.existsSync(indexFile)) {
-    res.sendFile(indexFile);
-  } else {
-    res.status(404).send("index.html not found");
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Use dynamic port for Render deployment
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
