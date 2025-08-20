@@ -10,7 +10,6 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 10000;
 
-// --- Chat endpoint ---
 app.post("/api/chat", async (req, res) => {
   const { prompt, model, sessionId } = req.body;
 
@@ -19,8 +18,8 @@ app.post("/api/chat", async (req, res) => {
     let headers = {};
     let body = {};
 
+    // Gemini handling
     if (model === "gemini") {
-      // Google Gemini API
       apiUrl = "https://generativelanguage.googleapis.com/v1beta2/models/chat-bison-001:generateMessage";
       headers = {
         "Content-Type": "application/json",
@@ -31,8 +30,9 @@ app.post("/api/chat", async (req, res) => {
         temperature: 0.7,
         candidateCount: 1,
       });
+
+    // OpenRouter or other models
     } else {
-      // OpenRouter API
       apiUrl = "https://openrouter.ai/v1/chat/completions";
       headers = {
         "Content-Type": "application/json",
@@ -45,11 +45,11 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
+    // Use native fetch (Node 18+)
     const response = await fetch(apiUrl, { method: "POST", headers, body });
     const data = await response.json();
 
-    // --- Extract reply based on API ---
-    let reply = "";
+    let reply;
     if (model === "gemini") {
       reply = data?.candidates?.[0]?.content?.[0]?.text || "No reply from Gemini.";
     } else {
@@ -57,6 +57,7 @@ app.post("/api/chat", async (req, res) => {
     }
 
     res.json({ choices: [{ message: { content: reply } }] });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: { message: err.message } });
