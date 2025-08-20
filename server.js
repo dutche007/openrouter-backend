@@ -1,46 +1,62 @@
+// server.js
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 
 dotenv.config();
+
 const app = express();
+const PORT = process.env.PORT || 10000;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
+if (!OPENROUTER_API_KEY) {
+  console.error("❌ OPENROUTER_API_KEY not set in environment variables");
+  process.exit(1);
+}
+
 app.use(express.json());
 
-const PORT = process.env.PORT || 10000;
+app.get("/", (req, res) => {
+  res.send("OpenRouter Backend is running!");
+});
 
 app.post("/api/chat", async (req, res) => {
-  const { prompt, model } = req.body;
+  const { messages } = req.body;
+
+  if (!messages) {
+    return res.status(400).json({ error: "Messages array is required" });
+  }
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: model,
-        messages: [{ role: "user", content: prompt }]
-      })
+        model: "gpt-4o-mini",
+        messages,
+      }),
     });
 
-    const text = await response.text();  // read raw text first
+    const text = await response.text();
     let data;
 
     try {
-      data = JSON.parse(text);  // try parsing JSON
+      data = JSON.parse(text);
     } catch (err) {
       console.error("Non-JSON response received:", text);
-      return res.status(500).json({ error: "Invalid response from API", raw: text });
+      return res.status(500).json({ error: "Invalid response from OpenRouter API", raw: text });
     }
 
     res.json(data);
   } catch (err) {
     console.error("Fetch error:", err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
