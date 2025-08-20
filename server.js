@@ -13,14 +13,14 @@ const sessions = new Map(); // { sessionId: [{role: 'system/user/assistant', con
 
 // Allowed models (whitelist from frontend dropdown)
 const allowedModels = [
-    'qwen/qwen-2.5-coder-32b-instruct:free',
-    'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
-    'meta-llama/llama-3.2-3b-instruct:free',
-    'mistralai/mistral-7b-instruct',
-    'google/gemma-2-9b-it:free',
-    'deepseek/deepseek-r1-0528:free',
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'tngtech/deepseek-r1t-chimera:free'
+  'qwen/qwen-2.5-coder-32b-instruct:free',
+  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'mistralai/mistral-7b-instruct',
+  'google/gemma-2-9b-it:free',
+  'deepseek/deepseek-r1-0528:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'tngtech/deepseek-r1t-chimera:free'
 ];
 
 // Enable CORS for all routes
@@ -65,7 +65,44 @@ app.post('/api/chat', async (req, res) => {
       ]);
     }
     const history = sessions.get(sessionId);
-    history.push({ role: 'user', content: sanitizedPrompt });
+
+    // --- Conditional "thinking" prompt based on model ---
+    const reasoningModels = [
+      'deepseek/deepseek-r1-0528:free',
+      'meta-llama/llama-3.3-70b-instruct:free'
+    ];
+
+    let userPromptContent = sanitizedPrompt;
+    if (reasoningModels.includes(model)) {
+        userPromptContent = `
+            You are ALICE BOT. Your task is to respond to the user's request.
+            First, take a moment to think through your response step-by-step.
+            Describe your thought process clearly and concisely.
+            Then, provide your final response to the user.
+            Here is the user's message:
+            ${sanitizedPrompt}
+        `;
+    }
+    
+    // --- Guardrail for repeated greetings (optional, but a good practice) ---
+    // You can uncomment this block if you want to use it
+    /*
+    const sanitizedPromptLower = sanitizedPrompt.toLowerCase();
+    if (sanitizedPromptLower.includes('hello') && history.length > 1) {
+      const lastMessage = history[history.length - 1];
+      if (lastMessage.content.toLowerCase().includes('hello')) {
+        const customReply = "Hey again, circuit-rider! Looks like the first ping got lost in the static. What's the mission this time?";
+        history.push({ role: 'assistant', content: customReply });
+        return res.json({
+          choices: [{
+            message: { content: customReply }
+          }]
+        });
+      }
+    }
+    */
+    
+    history.push({ role: 'user', content: userPromptContent });
 
     // Send request to OpenRouter with full history
     const response = await axios.post(
