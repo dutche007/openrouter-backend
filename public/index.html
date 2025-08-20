@@ -171,7 +171,7 @@ async function sendMessage(retryInput) {
         if (!res.ok) throw new Error(data.error || 'Unknown error');
 
         let reply = data.choices[0].message.content;
-        if (reply.length > 200) reply = reply.split('. ')[0] + '.';
+        // Removed truncation: let full reply come through
         addMessage(reply, 'ai');
         speakText(reply);
 
@@ -220,6 +220,12 @@ function stopSpeaking() {
 function resetChat() {
     document.getElementById('chatbox').innerHTML = '';
     stopSpeaking();
+    // Optional: Reset session on backend
+    fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+    }).catch(err => console.error('Reset error:', err));
 }
 
 // --- Enter key submit, shift+Enter for new line ---
