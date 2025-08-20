@@ -27,10 +27,14 @@
         background-color: #111;
         border-radius: 12px;
         margin-bottom: 10px;
-        transition: box-shadow 0.3s ease-in-out;
+        transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
     }
     #chatbox.speaking {
         box-shadow: 0 0 25px #ff0000, 0 0 50px #ff1a1a;
+    }
+    #chatbox.listening {
+        box-shadow: 0 0 25px #4dff4d, 0 0 50px #1aff1a;
+        border-color: #4dff4d;
     }
     .message {
         margin: 5px 0;
@@ -89,6 +93,29 @@
         color: #ff4d4d;
         border: 1px solid #ff3333;
     }
+    .typing-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 12px;
+    }
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background-color: #ff4d4d;
+        border-radius: 50%;
+        animation: bounce 1.2s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(2) {
+        animation-delay: -0.2s;
+    }
+    .typing-indicator span:nth-child(3) {
+        animation-delay: -0.4s;
+    }
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
     @media (max-width: 600px) {
         #chatbox { height: 300px; }
     }
@@ -133,20 +160,44 @@ if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
     recognition.interimResults = false;
     recognition.continuous = false;
 
+    recognition.onstart = function() {
+        toggleListeningUI(true);
+    };
+    recognition.onend = function() {
+        toggleListeningUI(false);
+    };
+
     recognition.onresult = function(event) {
         const speechText = event.results[0][0].transcript;
         document.getElementById('userInput').value = speechText;
         sendMessage();
     };
 
-    recognition.onerror = function(event) { console.error('Speech recognition error', event.error); };
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error', event.error);
+        toggleListeningUI(false);
+    };
 } else {
     console.warn("Speech Recognition not supported in this browser.");
+    document.querySelector('#controls button:nth-child(4)').style.display = 'none';
+    document.querySelector('#controls button:nth-child(5)').style.display = 'none';
 }
 
 // --- STT controls ---
 function startListening() { recognition?.start(); }
 function stopListening() { recognition?.stop(); }
+
+function toggleListeningUI(isListening) {
+    const chatbox = document.getElementById('chatbox');
+    const speakButton = document.querySelector('button[onclick="startListening()"]');
+    if (isListening) {
+        chatbox.classList.add('listening');
+        speakButton.textContent = '...Listening';
+    } else {
+        chatbox.classList.remove('listening');
+        speakButton.textContent = '🎤 Speak';
+    }
+}
 
 // --- Chat & TTS ---
 async function sendMessage(retryInput) {
@@ -157,8 +208,7 @@ async function sendMessage(retryInput) {
     if (!retryInput) addMessage(text, 'user');
     inputEl.value = '';
 
-    const chatbox = document.getElementById('chatbox');
-    const typingIndicator = addMessage('AI is typing...', 'ai');
+    const typingIndicator = addTypingIndicator();
 
     const modelSelect = document.getElementById('modelSelect');
 
@@ -175,7 +225,6 @@ async function sendMessage(retryInput) {
         if (!res.ok) throw new Error(data.error || 'Unknown error');
 
         let reply = data.choices[0].message.content;
-        // Removed truncation: let full reply come through
         addMessage(reply, 'ai');
         speakText(reply);
 
@@ -183,14 +232,13 @@ async function sendMessage(retryInput) {
         console.error(err);
         typingIndicator.remove();
 
-        // Switch to next model in select
         const options = [...modelSelect.options];
         const currentIndex = options.findIndex(opt => opt.value === modelSelect.value);
         const nextIndex = (currentIndex + 1) % options.length;
         modelSelect.selectedIndex = nextIndex;
 
         addMessage(`Error encountered. Switching model to ${modelSelect.value} and retrying...`, 'ai');
-        sendMessage(text); // Retry same user input
+        sendMessage(text);
     }
 }
 
@@ -204,9 +252,19 @@ function addMessage(text, type) {
     return msg;
 }
 
+function addTypingIndicator() {
+    const chatbox = document.getElementById('chatbox');
+    const typingMsg = document.createElement('div');
+    typingMsg.className = 'message ai typing-indicator';
+    typingMsg.innerHTML = '<span></span><span></span><span></span>';
+    chatbox.appendChild(typingMsg);
+    chatbox.scrollTop = chatbox.scrollHeight;
+    return typingMsg;
+}
+
 // --- Simplified TTS ---
 function speakText(text) {
-    stopSpeaking(); // Cancel any ongoing speech
+    stopSpeaking();
     const utterance = new SpeechSynthesisUtterance(text);
     const chatbox = document.getElementById('chatbox');
     utterance.onstart = () => chatbox.classList.add('speaking');
@@ -224,7 +282,6 @@ function stopSpeaking() {
 function resetChat() {
     document.getElementById('chatbox').innerHTML = '';
     stopSpeaking();
-    // Optional: Reset session on backend
     fetch('/api/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
