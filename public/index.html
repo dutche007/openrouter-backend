@@ -277,14 +277,20 @@ function addTypingIndicator() {
     return typingMsg;
 }
 
-// --- Simplified TTS ---
+// --- Simplified TTS with Emoji Filter ---
 function speakText(text) {
     stopSpeaking();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const chatbox = document.getElementById('chatbox');
-    utterance.onstart = () => chatbox.classList.add('speaking');
-    utterance.onend = () => chatbox.classList.remove('speaking');
-    speechSynthesis.speak(utterance);
+    // Regular expression to remove most emojis and emoji-like characters
+    const emojiRegex = /(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g;
+    const cleanText = text.replace(emojiRegex, '');
+
+    if (cleanText.trim().length > 0) { // Only speak if there's text remaining
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        const chatbox = document.getElementById('chatbox');
+        utterance.onstart = () => chatbox.classList.add('speaking');
+        utterance.onend = () => chatbox.classList.remove('speaking');
+        speechSynthesis.speak(utterance);
+    }
 }
 
 function stopSpeaking() {
