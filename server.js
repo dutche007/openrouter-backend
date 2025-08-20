@@ -13,10 +13,14 @@ const sessions = new Map(); // { sessionId: [{role: 'system/user/assistant', con
 
 // Allowed models (whitelist from frontend dropdown)
 const allowedModels = [
-  'qwen/qwen-2.5-coder-32b-instruct:free',
-  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
-  'meta-llama/llama-3.2-3b-instruct:free',
-  'mistralai/mistral-7b-instruct'
+    'qwen/qwen-2.5-coder-32b-instruct:free',
+    'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+    'meta-llama/llama-3.2-3b-instruct:free',
+    'mistralai/mistral-7b-instruct',
+    'google/gemma-2-9b-it:free',
+    'deepseek/deepseek-r1-0528:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'tngtech/deepseek-r1t-chimera:free'
 ];
 
 // Enable CORS for all routes
