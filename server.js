@@ -1,48 +1,48 @@
-// server.js
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
-import fetch from "node-fetch"; // make sure node-fetch is installed
+import fs from "fs";
 import dotenv from "dotenv";
+import fetch from "node-fetch"; // Make sure node-fetch is installed
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname, "build")));
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Example API route
-app.get("/api/example", async (req, res) => {
+// Detect static folder: build or public
+const buildPath = path.join(process.cwd(), "build");
+const publicPath = path.join(process.cwd(), "public");
+const staticPath = fs.existsSync(buildPath) ? buildPath : publicPath;
+
+// Serve static files
+app.use(express.static(staticPath));
+
+// Example API route (adjust based on your existing code)
+app.post("/api/some-endpoint", async (req, res) => {
   try {
-    const response = await fetch("https://your-api-endpoint.com/data"); 
-    const text = await response.text();
+    const response = await fetch("https://example.com/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
 
-    // Check if response is JSON
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      console.error("Response was not valid JSON:", text);
-      return res.status(500).json({ error: "Invalid JSON from upstream API" });
-    }
-
+    const data = await response.json();
     res.json(data);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Something went wrong" });
   }
 });
 
-// All other routes serve the frontend index.html
+// Catch-all for React Router
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "build", "index.html"));
+  res.sendFile(path.join(staticPath, "index.html"));
 });
 
 app.listen(PORT, () => {
-  console.log("Server is running on port", PORT);
+  console.log(`Server running on port ${PORT}`);
 });
