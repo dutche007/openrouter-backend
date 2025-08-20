@@ -225,18 +225,23 @@ async function sendMessage(retryInput) {
         if (!res.ok) throw new Error(data.error || 'Unknown error');
 
         // Get the full AI response, which includes the thought process
-let fullReply = data.choices[0].message.content;
+        let fullReply = data.choices[0].message.content;
 
-// Check for the unique marker to separate the thought process from the final reply
-let finalReply = fullReply;
-const finalResponseMarker = '[FINAL RESPONSE]';
-if (fullReply.includes(finalResponseMarker)) {
-    const parts = fullReply.split(finalResponseMarker);
-    finalReply = parts[1].trim(); // Get the text after the marker and remove whitespace
-}
+        // Check for the unique marker to separate the thought process from the final reply
+        let finalReply = fullReply;
+        const finalResponseMarker = '---FINAL---';
+        if (fullReply.includes(finalResponseMarker)) {
+            const parts = fullReply.split(finalResponseMarker);
+            finalReply = parts[1].trim(); // Get the text after the marker and remove whitespace
+        } else {
+            // If the marker is not found, log a warning and use the full reply
+            console.warn("Final response marker not found. The full response will be displayed.");
+            console.log("Full AI response:", fullReply);
+            finalReply = fullReply;
+        }
 
-addMessage(finalReply, 'ai');
-speakText(finalReply);
+        addMessage(finalReply, 'ai');
+        speakText(finalReply);
 
     } catch (err) {
         console.error(err);
