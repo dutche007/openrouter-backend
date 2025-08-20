@@ -280,7 +280,9 @@ function addTypingIndicator() {
 // --- Simplified TTS ---
 function speakText(text) {
     stopSpeaking();
-    const utterance = new SpeechSynthesisUtterance(text);
+    // This line removes all emojis before the text is spoken
+    const textWithoutEmojis = text.replace(/\p{Emoji_Presentation}/gu, '');
+    const utterance = new SpeechSynthesisUtterance(textWithoutEmojis);
     const chatbox = document.getElementById('chatbox');
     utterance.onstart = () => chatbox.classList.add('speaking');
     utterance.onend = () => chatbox.classList.remove('speaking');
