@@ -1,38 +1,48 @@
+// server.js
 import express from "express";
-import fetch from "node-fetch";
+import path from "path";
+import { fileURLToPath } from "url";
+import fetch from "node-fetch"; // make sure node-fetch is installed
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const app = express();
-app.use(express.json());
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Use Render's dynamic port or default 10000
+const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.get("/", (req, res) => {
-  res.send("Server is running!");
-});
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, "build")));
 
-// Example API endpoint using fetch safely
-app.get("/api/data", async (req, res) => {
+// Example API route
+app.get("/api/example", async (req, res) => {
   try {
-    const response = await fetch("https://api.example.com/data"); // Replace with your API URL
+    const response = await fetch("https://your-api-endpoint.com/data"); 
+    const text = await response.text();
 
-    const text = await response.text(); // Read as text first
+    // Check if response is JSON
+    let data;
     try {
-      const data = JSON.parse(text); // Parse JSON safely
-      res.json(data);
+      data = JSON.parse(text);
     } catch {
-      // If it’s not JSON, return as text
-      res.send(text);
+      console.error("Response was not valid JSON:", text);
+      return res.status(500).json({ error: "Invalid JSON from upstream API" });
     }
+
+    res.json(data);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch data" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
+// All other routes serve the frontend index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "build", "index.html"));
+});
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("Server is running on port", PORT);
 });
