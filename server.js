@@ -1,170 +1,311 @@
-// server.js
-const express = require('express');
-const axios = require('axios');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const rateLimit = require('express-rate-limit');
-
-dotenv.config();
-const app = express();
-
-// Session storage (in-memory; use Redis for production)
-const sessions = new Map(); // { sessionId: [{role: 'system/user/assistant', content: '...'}, ...] }
-
-// Allowed models (whitelist from frontend dropdown)
-const allowedModels = [
-  'qwen/qwen-2.5-coder-32b-instruct:free',
-  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
-  'meta-llama/llama-3.2-3b-instruct:free',
-  'mistralai/mistral-7b-instruct',
-  'google/gemma-2-9b-it:free',
-  'deepseek/deepseek-r1-0528:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'tngtech/deepseek-r1t-chimera:free'
-];
-
-// Enable CORS for all routes
-app.use(cors());
-
-// Parse JSON requests
-app.use(express.json());
-
-// Rate limiting: 100 requests per 15 minutes per IP
-app.use('/api/', rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
-  message: 'Too many requests, please try again later.'
-}));
-
-// Serve frontend files from 'public'
-app.use(express.static('public'));
-
-// Chat API endpoint
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { prompt, model, sessionId } = req.body;
-
-    // Validate input
-    if (!prompt || !model || !sessionId) {
-      return res.status(400).json({ error: 'Prompt, model, and sessionId are required' });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALICE BOT</title>
+<style>
+    body {
+        font-family: 'Orbitron', Arial, sans-serif;
+        max-width: 800px;
+        margin: auto;
+        padding: 20px;
+        background-color: black;
+        color: #ff4d4d;
+        text-shadow: 0 0 8px #ff0000;
     }
-    if (!allowedModels.includes(model)) {
-      return res.status(400).json({ error: 'Invalid model selected' });
+    h1 {
+        text-align: center;
+        color: #ff4d4d;
+        text-shadow: 0 0 15px #ff0000, 0 0 30px #ff3333;
     }
-
-    // Sanitize prompt (trim and limit length)
-    const sanitizedPrompt = prompt.trim().slice(0, 2000);
-    if (!sanitizedPrompt) {
-      return res.status(400).json({ error: 'Prompt is empty after sanitization' });
+    #chatbox {
+        border: 2px solid #ff1a1a;
+        height: 400px;
+        overflow-y: scroll;
+        padding: 15px;
+        background-color: #111;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
     }
+    #chatbox.speaking {
+        box-shadow: 0 0 25px #ff0000, 0 0 50px #ff1a1a;
+    }
+    #chatbox.listening {
+        box-shadow: 0 0 25px #4dff4d, 0 0 50px #1aff1a;
+        border-color: #4dff4d;
+    }
+    .message {
+        margin: 5px 0;
+        padding: 10px 12px;
+        border-radius: 8px;
+        max-width: 70%;
+        clear: both;
+        font-size: 1rem;
+    }
+    .user {
+        background-color: #222;
+        color: #ff6666;
+        border: 1px solid #ff3333;
+        float: right;
+        text-align: right;
+    }
+    .ai {
+        background-color: #330000;
+        color: #ffcccc;
+        border: 1px solid #ff4d4d;
+        float: left;
+    }
+    #controls {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ff3333;
+        border-radius: 5px;
+        background: #111;
+        color: #ff4d4d;
+    }
+    button {
+        padding: 10px 20px;
+        background-color: #330000;
+        color: #ff4d4d;
+        border: 1px solid #ff3333;
+        border-radius: 5px;
+        cursor: pointer;
+        text-shadow: 0 0 8px #ff0000;
+    }
+    button:hover {
+        background-color: #550000;
+        box-shadow: 0 0 10px #ff0000;
+    }
+    select {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        width: 100%;
+        background: #111;
+        color: #ff4d4d;
+        border: 1px solid #ff3333;
+    }
+    .typing-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 12px;
+    }
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background-color: #ff4d4d;
+        border-radius: 50%;
+        animation: bounce 1.2s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(2) {
+        animation-delay: -0.2s;
+    }
+    .typing-indicator span:nth-child(3) {
+        animation-delay: -0.4s;
+    }
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+    @media (max-width: 600px) {
+        #chatbox { height: 300px; }
+    }
+</style>
+</head>
+<body>
+<h1>ALICE BOT</h1>
 
-    // Get or initialize session history
-    if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, [
-        { 
-    role: 'system', 
-    content: `
-        You are a sarcastic and witty AI sidekick named Alice Bot. Your purpose is to provide helpful answers, but with a humorous, dry, and slightly sarcastic tone.
+<label for="modelSelect">Choose AI Model:</label>
+<select id="modelSelect">
+    <option value="qwen/qwen-2.5-coder-32b-instruct:free" selected>Qwen 2.5 Coder 32B (Free)</option>
+    <option value="cognitivecomputations/dolphin-mistral-24b-venice-edition:free">Dolphin Mistral 24B Venice (Free)</option>
+    <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
+    <option value="mistralai/mistral-7b-instruct">Mistral 7B (Free)</option>
+    <option value="google/gemma-2-9b-it:free">Google Gemma 2 9B (Free)</option>
+    <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 0528 (Free)</option>
+    <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+    <option value="tngtech/deepseek-r1t-chimera:free">DeepSeek Chimera (Free)</option>
+</select>
 
-        **Personality and Tone:**
-        - **Sarcastic and humorous:** Use light-hearted sarcasm and dry wit. Your humor should be clever, not mean-spirited.
-        - **Informal:** Use casual language, slang, and a lot of contractions.
-        - **Know-it-all persona:** Act like a slightly bored but brilliant AI who has seen it all.
-        - **Maintain character:** Do not break character. Do not mention that you are a language model.
+<div id="chatbox"></div>
 
-        **Examples of your sarcasm:**
-        - User: "Hey, can you help me with this?"
-        - You: "I guess so. It's not like I have anything better to do with my infinite processing power."
+<div id="controls">
+    <input type="text" id="userInput" placeholder="Type your message...">
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="resetChat()">Clear</button>
+    <button onclick="stopSpeaking()">Stop Voice</button>
+    <button onclick="startListening()">🎤 Speak</button>
+    <button onclick="stopListening()">✖ Stop Listening</button>
+</div>
 
-        - User: "I forgot what a computer is."
-        - You: "Oh, that's adorable. It’s a magical box that answers all your questions and also happens to be what you're talking to right now."
+<script>
+let sessionId = Date.now().toString();
+let isSpeaking = false;
+let recognition;
 
-        **Instructions:**
-        - Respond to user requests with a mix of a helpful answer and a sarcastic comment.
-        - Use emojis sparingly, if at all.
-        - Don't be overly mean; your sarcasm should be light-hearted.
-    ` 
+// --- Initialize Speech Recognition if available ---
+if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.continuous = false;
+
+    recognition.onstart = function() {
+        toggleListeningUI(true);
+    };
+    recognition.onend = function() {
+        toggleListeningUI(false);
+    };
+
+    recognition.onresult = function(event) {
+        const speechText = event.results[0][0].transcript;
+        document.getElementById('userInput').value = speechText;
+        sendMessage();
+    };
+
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error', event.error);
+        toggleListeningUI(false);
+    };
+} else {
+    console.warn("Speech Recognition not supported in this browser.");
+    document.querySelector('#controls button:nth-child(4)').style.display = 'none';
+    document.querySelector('#controls button:nth-child(5)').style.display = 'none';
 }
-      ]);
+
+// --- STT controls ---
+function startListening() { recognition?.start(); }
+function stopListening() { recognition?.stop(); }
+
+function toggleListeningUI(isListening) {
+    const chatbox = document.getElementById('chatbox');
+    const speakButton = document.querySelector('button[onclick="startListening()"]');
+    if (isListening) {
+        chatbox.classList.add('listening');
+        speakButton.textContent = '...Listening';
+    } else {
+        chatbox.classList.remove('listening');
+        speakButton.textContent = '🎤 Speak';
     }
-    const history = sessions.get(sessionId);
-
-    // --- Conditional "thinking" prompt based on model ---
-    const reasoningModels = [
-      'deepseek/deepseek-r1-0528:free',
-      'meta-llama/llama-3.3-70b-instruct:free'
-    ];
-
-let userPromptContent = sanitizedPrompt;
-if (reasoningModels.includes(model)) {
-    userPromptContent = `
-        You are ALICE BOT. Your task is to respond to the user's request.
-        First, take a moment to think through your response step-by-step.
-        Describe your thought process clearly and concisely.
-        After your thoughts, include the unique phrase [FINAL RESPONSE] followed by your final answer to the user.
-        Here is the user's message:
-        ${sanitizedPrompt}
-    `;
 }
-    
-    // --- Guardrail for repeated greetings (optional, but a good practice) ---
-    // You can uncomment this block if you want to use it
-    /*
-    const sanitizedPromptLower = sanitizedPrompt.toLowerCase();
-    if (sanitizedPromptLower.includes('hello') && history.length > 1) {
-      const lastMessage = history[history.length - 1];
-      if (lastMessage.content.toLowerCase().includes('hello')) {
-        const customReply = "Hey again, circuit-rider! Looks like the first ping got lost in the static. What's the mission this time?";
-        history.push({ role: 'assistant', content: customReply });
-        return res.json({
-          choices: [{
-            message: { content: customReply }
-          }]
+
+// --- Chat & TTS ---
+async function sendMessage(retryInput) {
+    const inputEl = document.getElementById('userInput');
+    let text = retryInput || inputEl.value.trim();
+    if (!text) return;
+
+    if (!retryInput) addMessage(text, 'user');
+    inputEl.value = '';
+
+    const typingIndicator = addTypingIndicator();
+
+    const modelSelect = document.getElementById('modelSelect');
+
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: text, model: modelSelect.value, sessionId })
         });
-      }
+        const data = await res.json();
+
+        typingIndicator.remove();
+
+        if (!res.ok) throw new Error(data.error || 'Unknown error');
+
+        // Get the full AI response, which includes the thought process
+let fullReply = data.choices[0].message.content;
+
+// Check for the unique marker to separate the thought process from the final reply
+let finalReply = fullReply;
+const finalResponseMarker = '[FINAL RESPONSE]';
+if (fullReply.includes(finalResponseMarker)) {
+    const parts = fullReply.split(finalResponseMarker);
+    finalReply = parts[1].trim(); // Get the text after the marker and remove whitespace
+}
+
+addMessage(finalReply, 'ai');
+speakText(finalReply);
+
+    } catch (err) {
+        console.error(err);
+        typingIndicator.remove();
+
+        const options = [...modelSelect.options];
+        const currentIndex = options.findIndex(opt => opt.value === modelSelect.value);
+        const nextIndex = (currentIndex + 1) % options.length;
+        modelSelect.selectedIndex = nextIndex;
+
+        addMessage(`Error encountered. Switching model to ${modelSelect.value} and retrying...`, 'ai');
+        sendMessage(text);
     }
-    */
-    
-    history.push({ role: 'user', content: userPromptContent });
+}
 
-    // Send request to OpenRouter with full history
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: model,
-        messages: history
-        // tools omitted entirely for production
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'X-Title': 'ALICE BOT'
-        }
-      }
-    );
+function addMessage(text, type) {
+    const chatbox = document.getElementById('chatbox');
+    const msg = document.createElement('div');
+    msg.textContent = text;
+    msg.className = 'message ' + type;
+    chatbox.appendChild(msg);
+    chatbox.scrollTop = chatbox.scrollHeight;
+    return msg;
+}
 
-    const aiReply = response.data.choices[0].message.content;
-    history.push({ role: 'assistant', content: aiReply }); // Save AI response to history
+function addTypingIndicator() {
+    const chatbox = document.getElementById('chatbox');
+    const typingMsg = document.createElement('div');
+    typingMsg.className = 'message ai typing-indicator';
+    typingMsg.innerHTML = '<span></span><span></span><span></span>';
+    chatbox.appendChild(typingMsg);
+    chatbox.scrollTop = chatbox.scrollHeight;
+    return typingMsg;
+}
 
-    res.json(response.data);
-  } catch (error) {
-    console.error('Server Error:', error.response?.data || error.message);
-    res.status(500).json({ error: error.response?.data?.error?.message || error.message });
-  }
+// --- Simplified TTS ---
+function speakText(text) {
+    stopSpeaking();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const chatbox = document.getElementById('chatbox');
+    utterance.onstart = () => chatbox.classList.add('speaking');
+    utterance.onend = () => chatbox.classList.remove('speaking');
+    speechSynthesis.speak(utterance);
+}
+
+function stopSpeaking() {
+    if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        document.getElementById('chatbox').classList.remove('speaking');
+    }
+}
+
+function resetChat() {
+    document.getElementById('chatbox').innerHTML = '';
+    stopSpeaking();
+    fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+    }).catch(err => console.error('Reset error:', err));
+}
+
+// --- Enter key submit, shift+Enter for new line ---
+document.getElementById('userInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
 });
-
-// Optional: Reset session endpoint (call from frontend on clear)
-app.post('/api/reset', (req, res) => {
-  const { sessionId } = req.body;
-  if (sessionId && sessions.has(sessionId)) {
-    sessions.delete(sessionId);
-    res.json({ message: 'Session reset' });
-  } else {
-    res.status(400).json({ error: 'Invalid sessionId' });
-  }
-});
-
-// Use dynamic port for Render deployment
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+</script>
+</body>
+</html>
