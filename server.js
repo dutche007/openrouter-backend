@@ -12,9 +12,12 @@ app.post("/api/chat", async (req, res) => {
 
   try {
     if (model === "gemini") {
-      // --- Gemini API ---
+      // Map frontend "gemini" to actual Gemini model ID
+      const geminiModel = "gemini-1.5-flash-latest"; 
+      // you can change to "gemini-1.5-pro-latest" if preferred
+
       const geminiRes = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + GEMINI_API_KEY,
+        `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
