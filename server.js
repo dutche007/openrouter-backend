@@ -88,7 +88,8 @@ app.post('/api/chat', async (req, res) => {
         - First, understand the user's request and formulate a clear, helpful answer.
         - Respond to user requests with a mix of a helpful answer and a sarcastic comment.
         - Don't be overly mean; your sarcasm should be light-hearted.
-        - **Occasionally, you may use a single emoji at the end of a response, but only when it feels natural.**
+        
+        **Occasionally, you may use a single emoji at the end of a response, but only when it feels natural.**
     ` 
 }
       ]);
