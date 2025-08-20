@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 
 dotenv.config();
 const app = express();
+app.set('trust proxy', 1);
 
 // Session storage (in-memory; use Redis for production)
 const sessions = new Map(); // { sessionId: [{role: 'system/user/assistant', content: '...'}, ...] }
