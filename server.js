@@ -9,6 +9,8 @@ const OpenAI = require('openai');
 dotenv.config();
 const app = express();
 
+app.set('trust proxy', 1);
+
 // --- Session storage ---
 const sessions = new Map(); // { sessionId: [{role, content}, ...] }
 
