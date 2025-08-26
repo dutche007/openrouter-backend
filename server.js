@@ -25,15 +25,49 @@ const allowedModels = [
   'tngtech/deepseek-r1t-chimera:free'
 ];
 
-// --- Simple British military slang list ---
-const slang = [
-  'Ally', 'Threaders', 'Hoofing', 'Gleaming', 'Dhobi Dust', 'Egg Banjo', 'Gash',
-  'Gen', 'Jack', 'KFS', 'Beasted', 'Civi', 'Crow', 'Buckshee', 'Daysack',
-  'Crap hat', 'Dit', 'Doss Bag', 'Oggin', 'Pull up a sandbag', 'Green time machine',
-  'Redders', 'Walt', 'Badmin', 'End Ex', 'Scoff', 'Cookhouse', 'Scran', 'Galley',
-  'Stag', 'NAAFI', 'Scale A Parade', 'Chin-strapped', 'Bone', 'You’re in your own time now',
-  'TAB', 'Yomp', 'Hanging out', 'Recce', 'Marking time'
-];
+// --- British military slang bank ---
+const slangBank = `
+Ally – Cool person or equipment, battlefield fashion.
+Threaders – Angry or fed up.
+Hoofing – Excellent or amazing.
+Gleaming – Good, desirable, brilliant.
+Dhobi Dust – Washing powder.
+Egg Banjo – Fried egg sandwich, usually eaten with one hand.
+Gash – Waste/discardable items.
+Gen – Genuine info: "What's the gen?"
+Jack – Workshy or selfish person.
+KFS – Knife, fork, spoon.
+Beasted – Excessive drill or physical training.
+Civi/Civy/Civvy – Civilian.
+Crow – New recruit, inexperienced soldier.
+Buckshee – Free or spare item of equipment.
+Daysack – Small backpack for essentials.
+Crap hat – Person from another regiment/unit.
+Dit – A story, often exaggerated.
+Doss Bag – Sleeping bag.
+Oggin – Water.
+Pull up a sandbag – Tell a story, often exaggerated.
+Green time machine – Sleeping bag.
+Redders – Hot or warm.
+Walt/Walter Mitty – Fantasist about service experience.
+Badmin – Poor administration or organisation.
+End Ex – Exercise/event is over.
+Scoff – Food.
+Cookhouse – Army canteen.
+Scran – Navy/Marines slang for food.
+Galley – Ship’s canteen.
+Stag – Guard duty.
+NAAFI – Place to buy snacks/tea/coffee.
+Scale A Parade – Mandatory parade for all regiment members.
+Chin-strapped – Very tired or sleep-deprived.
+Bone – Pointless, waste of time.
+You’re in your own time now – You cannot leave until finished.
+TAB – Forced march with heavy backpack.
+Yomp – Royal Marines forced march with heavy load.
+Hanging out – Suffering badly after activity.
+Recce – Reconnaissance.
+Marking time – Drill where legs move in place, or career not progressing.
+`;
 
 // --- CORS & JSON ---
 app.use(cors());
@@ -49,15 +83,6 @@ app.use('/api/', rateLimit({
 // --- Serve frontend ---
 app.use(express.static('public'));
 
-// --- Utility: inject random slang into AI response ---
-function injectSlang(text) {
-  if (Math.random() < 0.3) { // 30% chance to inject
-    const word = slang[Math.floor(Math.random() * slang.length)];
-    return text + ` (${word})`;
-  }
-  return text;
-}
-
 // --- Chat endpoint ---
 app.post('/api/chat', async (req, res) => {
   try {
@@ -71,15 +96,18 @@ app.post('/api/chat', async (req, res) => {
     if (!sanitizedPrompt)
       return res.status(400).json({ error: 'Prompt is empty after sanitization' });
 
-    // Initialize session
+    // Initialize session with slang bank in system message
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, [{
         role: 'system',
         content: `
-        You are a witty and humorous AI sidekick named Alice Bot.
-        Answer questions using British Army Values & Standards when relevant.
-        Keep a sarcastic, informal, clever tone.
-        `
+You are Alice Bot, a witty and humorous AI sidekick.
+Answer questions using British Army Values & Standards when relevant.
+Keep a sarcastic, informal, clever tone.
+You have access to the following slang bank. Use these words naturally in replies:
+
+${slangBank}
+`
       }]);
     }
     const history = sessions.get(sessionId);
@@ -103,14 +131,9 @@ app.post('/api/chat', async (req, res) => {
       }
     );
 
-    let aiReply = response.data.choices[0].message.content;
-
-    // Inject slang randomly
-    aiReply = injectSlang(aiReply);
-
+    const aiReply = response.data.choices[0].message.content;
     history.push({ role: 'assistant', content: aiReply });
 
-    // Send modified response
     res.json({ choices: [{ message: { content: aiReply } }] });
 
   } catch (error) {
