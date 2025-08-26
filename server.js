@@ -3,19 +3,17 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const fs = require('fs');
-const OpenAI = require('openai');
 
 dotenv.config();
 const app = express();
 
-// --- Trust proxy to fix express-rate-limit X-Forwarded-For issue ---
-app.set('trust proxy', true);
+// --- Trust proxy to fix rate-limit X-Forwarded-For issue ---
+app.set('trust proxy', 1);
 
 // --- Session storage ---
 const sessions = new Map(); // { sessionId: [{role, content}, ...] }
 
-// --- Allowed models ---
+// --- Allowed OpenRouter models only ---
 const allowedModels = [
   'qwen/qwen-2.5-coder-32b-instruct:free',
   'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
@@ -38,4 +36,75 @@ app.use('/api/', rateLimit({
   message: 'Too many requests, please try again later.'
 }));
 
-// --
+// --- Serve frontend ---
+app.use(express.static('public'));
+
+// --- Chat endpoint ---
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { prompt, model, sessionId } = req.body;
+    if (!prompt || !model || !sessionId)
+      return res.status(400).json({ error: 'Prompt, model, and sessionId are required' });
+    if (!allowedModels.includes(model))
+      return res.status(400).json({ error: 'Invalid model selected' });
+
+    const sanitizedPrompt = prompt.trim().slice(0, 2000);
+    if (!sanitizedPrompt)
+      return res.status(400).json({ error: 'Prompt is empty after sanitization' });
+
+    // Initialize session
+    if (!sessions.has(sessionId)) {
+      sessions.set(sessionId, [{
+        role: 'system',
+        content: `
+        You are a witty and humorous AI sidekick named Alice Bot.
+        Answer questions using British Army Values & Standards when relevant.
+        Keep a sarcastic, informal, clever tone.
+        `
+      }]);
+    }
+    const history = sessions.get(sessionId);
+
+    // Add user message
+    history.push({ role: 'user', content: sanitizedPrompt });
+
+    // Send request to OpenRouter
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model: model,
+        messages: history
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'X-Title': 'ALICE BOT'
+        }
+      }
+    );
+
+    const aiReply = response.data.choices[0].message.content;
+    history.push({ role: 'assistant', content: aiReply });
+
+    res.json(response.data);
+
+  } catch (error) {
+    console.error('Server Error:', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data?.error?.message || error.message });
+  }
+});
+
+// --- Reset endpoint ---
+app.post('/api/reset', (req, res) => {
+  const { sessionId } = req.body;
+  if (sessionId && sessions.has(sessionId)) {
+    sessions.delete(sessionId);
+    res.json({ message: 'Session reset' });
+  } else {
+    res.status(400).json({ error: 'Invalid sessionId' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
