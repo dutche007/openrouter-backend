@@ -25,6 +25,16 @@ const allowedModels = [
   'tngtech/deepseek-r1t-chimera:free'
 ];
 
+// --- Simple British military slang list ---
+const slang = [
+  'Ally', 'Threaders', 'Hoofing', 'Gleaming', 'Dhobi Dust', 'Egg Banjo', 'Gash',
+  'Gen', 'Jack', 'KFS', 'Beasted', 'Civi', 'Crow', 'Buckshee', 'Daysack',
+  'Crap hat', 'Dit', 'Doss Bag', 'Oggin', 'Pull up a sandbag', 'Green time machine',
+  'Redders', 'Walt', 'Badmin', 'End Ex', 'Scoff', 'Cookhouse', 'Scran', 'Galley',
+  'Stag', 'NAAFI', 'Scale A Parade', 'Chin-strapped', 'Bone', 'You’re in your own time now',
+  'TAB', 'Yomp', 'Hanging out', 'Recce', 'Marking time'
+];
+
 // --- CORS & JSON ---
 app.use(cors());
 app.use(express.json());
@@ -38,6 +48,15 @@ app.use('/api/', rateLimit({
 
 // --- Serve frontend ---
 app.use(express.static('public'));
+
+// --- Utility: inject random slang into AI response ---
+function injectSlang(text) {
+  if (Math.random() < 0.3) { // 30% chance to inject
+    const word = slang[Math.floor(Math.random() * slang.length)];
+    return text + ` (${word})`;
+  }
+  return text;
+}
 
 // --- Chat endpoint ---
 app.post('/api/chat', async (req, res) => {
@@ -84,10 +103,15 @@ app.post('/api/chat', async (req, res) => {
       }
     );
 
-    const aiReply = response.data.choices[0].message.content;
+    let aiReply = response.data.choices[0].message.content;
+
+    // Inject slang randomly
+    aiReply = injectSlang(aiReply);
+
     history.push({ role: 'assistant', content: aiReply });
 
-    res.json(response.data);
+    // Send modified response
+    res.json({ choices: [{ message: { content: aiReply } }] });
 
   } catch (error) {
     console.error('Server Error:', error.response?.data || error.message);
