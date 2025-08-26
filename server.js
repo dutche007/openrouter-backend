@@ -9,7 +9,8 @@ const OpenAI = require('openai');
 dotenv.config();
 const app = express();
 
-app.set('trust proxy', 1);
+// --- Trust proxy to fix express-rate-limit X-Forwarded-For issue ---
+app.set('trust proxy', true);
 
 // --- Session storage ---
 const sessions = new Map(); // { sessionId: [{role, content}, ...] }
@@ -37,121 +38,4 @@ app.use('/api/', rateLimit({
   message: 'Too many requests, please try again later.'
 }));
 
-// --- Serve frontend ---
-app.use(express.static('public'));
-
-// --- Load embeddings ---
-let embeddings = [];
-try {
-  embeddings = JSON.parse(fs.readFileSync('embeddings.json', 'utf-8'));
-  console.log(`Loaded ${embeddings.length} embeddings`);
-} catch (err) {
-  console.error('Error loading embeddings:', err);
-}
-
-// --- Cosine similarity ---
-function cosineSim(vecA, vecB) {
-  let dot = 0.0, normA = 0.0, normB = 0.0;
-  for (let i = 0; i < vecA.length; i++) {
-    dot += vecA[i] * vecB[i];
-    normA += vecA[i] * vecA[i];
-    normB += vecB[i] * vecB[i];
-  }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-// --- Retrieve top K chunks ---
-async function getRelevantChunks(query, k = 3) {
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-  const response = await client.embeddings.create({
-    model: 'text-embedding-3-large',
-    input: query
-  });
-
-  const queryEmbedding = response.data[0].embedding;
-
-  const scored = embeddings.map(e => ({
-    text: e.text,
-    score: cosineSim(queryEmbedding, e.embedding)
-  }));
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, k).map(e => e.text);
-}
-
-// --- Chat endpoint ---
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { prompt, model, sessionId } = req.body;
-    if (!prompt || !model || !sessionId)
-      return res.status(400).json({ error: 'Prompt, model, and sessionId are required' });
-    if (!allowedModels.includes(model))
-      return res.status(400).json({ error: 'Invalid model selected' });
-
-    const sanitizedPrompt = prompt.trim().slice(0, 2000);
-    if (!sanitizedPrompt)
-      return res.status(400).json({ error: 'Prompt is empty after sanitization' });
-
-    // Initialize session
-    if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, [{
-        role: 'system',
-        content: `
-        You are a witty and humorous AI sidekick named Alice Bot.
-        Answer questions using British Army Values & Standards when relevant.
-        Keep a sarcastic, informal, clever tone.
-        `
-      }]);
-    }
-    const history = sessions.get(sessionId);
-
-    // --- Get relevant chunks ---
-    const relevantChunks = await getRelevantChunks(sanitizedPrompt, 3);
-    const userPromptWithContext = `
-Use the following reference material from the British Army Values and Standards:
-${relevantChunks.join('\n\n')}
-User question: ${sanitizedPrompt}
-    `;
-    history.push({ role: 'user', content: userPromptWithContext });
-
-    // Send request to OpenRouter
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: model,
-        messages: history
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'X-Title': 'ALICE BOT'
-        }
-      }
-    );
-
-    const aiReply = response.data.choices[0].message.content;
-    history.push({ role: 'assistant', content: aiReply });
-
-    res.json(response.data);
-
-  } catch (error) {
-    console.error('Server Error:', error.response?.data || error.message);
-    res.status(500).json({ error: error.response?.data?.error?.message || error.message });
-  }
-});
-
-// --- Reset endpoint ---
-app.post('/api/reset', (req, res) => {
-  const { sessionId } = req.body;
-  if (sessionId && sessions.has(sessionId)) {
-    sessions.delete(sessionId);
-    res.json({ message: 'Session reset' });
-  } else {
-    res.status(400).json({ error: 'Invalid sessionId' });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// --
