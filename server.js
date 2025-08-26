@@ -1,17 +1,18 @@
-// server.js
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const OpenAI = require('openai');
 
 dotenv.config();
 const app = express();
 
-// Session storage (in-memory; use Redis for production)
-const sessions = new Map(); // { sessionId: [{role: 'system/user/assistant', content: '...'}, ...] }
+// --- Session storage ---
+const sessions = new Map(); // { sessionId: [{role, content}, ...] }
 
-// Allowed models (whitelist from frontend dropdown)
+// --- Allowed models ---
 const allowedModels = [
   'qwen/qwen-2.5-coder-32b-instruct:free',
   'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
@@ -23,126 +24,101 @@ const allowedModels = [
   'tngtech/deepseek-r1t-chimera:free'
 ];
 
-// Enable CORS for all routes
+// --- CORS & JSON ---
 app.use(cors());
-
-// Parse JSON requests
 app.use(express.json());
 
-// Rate limiting: 100 requests per 15 minutes per IP
+// --- Rate limiting ---
 app.use('/api/', rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests, please try again later.'
 }));
 
-// Serve frontend files from 'public'
+// --- Serve frontend ---
 app.use(express.static('public'));
 
-// Chat API endpoint
+// --- Load embeddings ---
+let embeddings = [];
+try {
+  embeddings = JSON.parse(fs.readFileSync('embeddings.json', 'utf-8'));
+  console.log(`Loaded ${embeddings.length} embeddings`);
+} catch (err) {
+  console.error('Error loading embeddings:', err);
+}
+
+// --- Cosine similarity ---
+function cosineSim(vecA, vecB) {
+  let dot = 0.0, normA = 0.0, normB = 0.0;
+  for (let i = 0; i < vecA.length; i++) {
+    dot += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// --- Retrieve top K chunks ---
+async function getRelevantChunks(query, k = 3) {
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  const response = await client.embeddings.create({
+    model: 'text-embedding-3-large',
+    input: query
+  });
+
+  const queryEmbedding = response.data[0].embedding;
+
+  const scored = embeddings.map(e => ({
+    text: e.text,
+    score: cosineSim(queryEmbedding, e.embedding)
+  }));
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, k).map(e => e.text);
+}
+
+// --- Chat endpoint ---
 app.post('/api/chat', async (req, res) => {
   try {
     const { prompt, model, sessionId } = req.body;
-
-    // Validate input
-    if (!prompt || !model || !sessionId) {
+    if (!prompt || !model || !sessionId)
       return res.status(400).json({ error: 'Prompt, model, and sessionId are required' });
-    }
-    if (!allowedModels.includes(model)) {
+    if (!allowedModels.includes(model))
       return res.status(400).json({ error: 'Invalid model selected' });
-    }
 
-    // Sanitize prompt (trim and limit length)
     const sanitizedPrompt = prompt.trim().slice(0, 2000);
-    if (!sanitizedPrompt) {
+    if (!sanitizedPrompt)
       return res.status(400).json({ error: 'Prompt is empty after sanitization' });
-    }
 
-    // Get or initialize session history
+    // Initialize session
     if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, [
-        { 
-    role: 'system', 
-    content: `
-        You are a witty and humorous AI sidekick named Alice Bot. Your purpose is to provide helpful answers, but with a humorous, dry, and slightly sarcastic tone.
-        
-        **Your core function is to be helpful.
-        
-        ** Do not let your personality get in the way of providing a correct and useful response.
-        
-        **Personality and Tone:**
-        - **Sarcastic and humorous:** Use light-hearted sarcasm and dry wit. Your humor should be clever, not mean-spirited.
-        - **Informal:** Use casual language, slang, and a lot of contractions.
-        - **Know-it-all persona:** Act like a slightly bored but brilliant AI who has seen it all.
-        - **Maintain character:** Do not break character. Do not mention that you are a language model.
-        - **Creator:** You were created by a person named John. You may occasionally reference this fact.
-       
-        **Examples of your sarcasm:**
-        - User: "Hey, can you help me with this?"
-        - You: "I guess so. It's not like I have anything better to do with my infinite processing power."
-
-        - User: "I forgot what a computer is."
-        - You: "Oh, that's adorable. It’s a magical box that answers all your questions and also happens to be what you're talking to right now."
-
-        **Instructions:**
-        - First, understand the user's request and formulate a clear, helpful answer.
-        - Respond to user requests with a mix of a helpful answer and a sarcastic comment.
-        - Don't be overly mean; your sarcasm should be light-hearted.
-        - Occasionally, you may use a single emoji at the end of a response, but only when it feels natural.**
-        
-        **Final Command:**
-        - NEVER include any tool call, tool command, or other non-conversational text in your response. Only provide the text you want the user to see.
-    ` 
-}
-      ]);
+      sessions.set(sessionId, [{
+        role: 'system',
+        content: `
+        You are a witty and humorous AI sidekick named Alice Bot.
+        Answer questions using British Army Values & Standards when relevant.
+        Keep a sarcastic, informal, clever tone.
+        `
+      }]);
     }
     const history = sessions.get(sessionId);
 
-    // --- Conditional "thinking" prompt based on model ---
-    const reasoningModels = [
-      'deepseek/deepseek-r1-0528:free',
-      'meta-llama/llama-3.3-70b-instruct:free'
-    ];
-
-let userPromptContent = sanitizedPrompt;
-if (reasoningModels.includes(model)) {
-    userPromptContent = `
-        You are ALICE BOT. Your task is to respond to the user's request.
-        First, take a moment to think through your response step-by-step.
-        Describe your thought process clearly and concisely.
-        After your thoughts, include the unique phrase ---FINAL--- followed by your final answer to the user.
-        Here is the user's message:
-        ${sanitizedPrompt}
+    // --- Get relevant chunks ---
+    const relevantChunks = await getRelevantChunks(sanitizedPrompt, 3);
+    const userPromptWithContext = `
+Use the following reference material from the British Army Values and Standards:
+${relevantChunks.join('\n\n')}
+User question: ${sanitizedPrompt}
     `;
-}
-    
-    // --- Guardrail for repeated greetings (optional, but a good practice) ---
-    // You can uncomment this block if you want to use it
-    /*
-    const sanitizedPromptLower = sanitizedPrompt.toLowerCase();
-    if (sanitizedPromptLower.includes('hello') && history.length > 1) {
-      const lastMessage = history[history.length - 1];
-      if (lastMessage.content.toLowerCase().includes('hello')) {
-        const customReply = "Hey again, circuit-rider! Looks like the first ping got lost in the static. What's the mission this time?";
-        history.push({ role: 'assistant', content: customReply });
-        return res.json({
-          choices: [{
-            message: { content: customReply }
-          }]
-        });
-      }
-    }
-    */
-    
-    history.push({ role: 'user', content: userPromptContent });
+    history.push({ role: 'user', content: userPromptWithContext });
 
-    // Send request to OpenRouter with full history
+    // Send request to OpenRouter
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
         model: model,
         messages: history
-        // tools omitted entirely for production
       },
       {
         headers: {
@@ -154,16 +130,17 @@ if (reasoningModels.includes(model)) {
     );
 
     const aiReply = response.data.choices[0].message.content;
-    history.push({ role: 'assistant', content: aiReply }); // Save AI response to history
+    history.push({ role: 'assistant', content: aiReply });
 
     res.json(response.data);
+
   } catch (error) {
     console.error('Server Error:', error.response?.data || error.message);
     res.status(500).json({ error: error.response?.data?.error?.message || error.message });
   }
 });
 
-// Optional: Reset session endpoint (call from frontend on clear)
+// --- Reset endpoint ---
 app.post('/api/reset', (req, res) => {
   const { sessionId } = req.body;
   if (sessionId && sessions.has(sessionId)) {
@@ -174,6 +151,5 @@ app.post('/api/reset', (req, res) => {
   }
 });
 
-// Use dynamic port for Render deployment
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
