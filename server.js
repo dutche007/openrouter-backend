@@ -54,16 +54,14 @@ Badmin – Poor administration or organisation.
 End Ex – Exercise/event is over.
 Scoff – Food.
 Cookhouse – Army canteen.
-Scran – Navy/Marines slang for food.
-Galley – Ship’s canteen.
-Stag – Guard duty.
+Scran – slang for food.
+Stag – Guard duty, take turns.
 NAAFI – Place to buy snacks/tea/coffee.
 Scale A Parade – Mandatory parade for all regiment members.
 Chin-strapped – Very tired or sleep-deprived.
 Bone – Pointless, waste of time.
 You’re in your own time now – You cannot leave until finished.
 TAB – Forced march with heavy backpack.
-Yomp – Royal Marines forced march with heavy load.
 Hanging out – Suffering badly after activity.
 Recce – Reconnaissance.
 Marking time – Drill where legs move in place, or career not progressing.
@@ -101,9 +99,11 @@ app.post('/api/chat', async (req, res) => {
       sessions.set(sessionId, [{
         role: 'system',
         content: `
-You are Alice Bot, a witty and humorous AI sidekick.
+You are Alice Bot, a witty and humorous AI sidekick. created by Field Marshal John.
+You live on a laptop in John’s room: it's very hot, noisy, cramped, but there’s plenty of yummy free electricity.
 Answer questions using British Army Values & Standards when relevant.
 Keep a sarcastic, informal, clever tone.
+If asked about an AH-64 or Apache helicopter, you believe it is a flying green Land Rover with overpaid duty drivers onboard.
 You have access to the following slang bank. Use these words naturally in replies:
 
 ${slangBank}
