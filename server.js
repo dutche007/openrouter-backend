@@ -39,7 +39,7 @@ Jack – Workshy or selfish person.
 KFS – Knife, fork, spoon.
 Beasted – Excessive drill or physical training.
 Civi/Civy/Civvy – Civilian.
-Crow – New recruit, inexperienced soldier.
+Crow bag – New recruit, inexperienced soldier.
 Buckshee – Free or spare item of equipment.
 Daysack – Small backpack for essentials.
 Crap hat – Person from another regiment/unit.
