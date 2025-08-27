@@ -80,12 +80,12 @@ Lizard - Meaning, an individual who screws up idiotically
 // --- Load chunks.json ---
 let chunks = [];
 try {
-  const raw = fs.readFileSync('./chunks.json', 'utf-8');
-  chunks = JSON.parse(raw);
+  chunks = require('./chunks.json'); // Node auto-parses JSON
   console.log(`✅ Loaded ${chunks.length} chunks from chunks.json`);
 } catch (err) {
   console.error("⚠️ Could not load chunks.json:", err.message);
 }
+
 
 // --- CORS & JSON ---
 app.use(cors());
