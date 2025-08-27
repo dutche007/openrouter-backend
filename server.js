@@ -74,6 +74,7 @@ Rigid - Switched on person, always high standards.
 In Clip - In rag order, tired, shattered.
 Cream in - Giving up, Couldn’t hack it, Flaking.
 Rats - not very good/nice. 
+Lizard - Meaning, an individual who screws up idiotically
 `;
 
 // --- CORS & JSON ---
