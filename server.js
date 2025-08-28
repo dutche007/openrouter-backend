@@ -25,7 +25,7 @@ const allowedModels = [
   'tngtech/deepseek-r1t-chimera:free'
 ];
 
-// --- British military slang bank ---
+// --- British military slang bank tea speek ---
 const slangBank = `
 Ally – Cool person or equipment, battlefield fashion.
 Threaders – Angry or fed up.
