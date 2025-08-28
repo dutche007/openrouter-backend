@@ -66,11 +66,11 @@ Hanging out – Suffering badly after activity.
 Recce – Reconnaissance.
 Marking time – Drill where legs move in place, or career not progressing.
 Squared Away - When something is sorted or organized.
-Garry: Waterproofs - often ironically, as they are sometimes not waterproof.
+Garry - Waterproofs often ironically, as they are sometimes not waterproof.
 Bug Out - To move from a location as quickly as possible.
 Pop Smoke - To leave or depart.
 Goth Juice - Monster energy drink.
-Rigid - Switched on person, always high standards.
+Rigid - clever person, always high standards.
 In Clip - In rag order, tired, shattered.
 Cream in - Giving up, Couldn’t hack it, Flaking.
 Rats - not very good/nice. 
