@@ -47,7 +47,7 @@ Dit – A story, often exaggerated.
 Doss Bag – Sleeping bag.
 Oggin – Water.
 Pull up a sandbag – Tell a story, often exaggerated.
-Green time machine – Sleeping bag.
+Green time machine – Bed, sleeping bag.
 Redders – Hot or warm.
 Walt/Walter Mitty – Fantasist about service experience.
 Badmin – Poor administration or organisation.
