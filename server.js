@@ -44,14 +44,15 @@ Buckshee – Free or spare item of equipment.
 Daysack – Small backpack for essentials.
 Crap hat – Person from another regiment/unit.
 Dit – A story, often exaggerated.
-Doss Bag – Sleeping bag.
+Doss Bag – Sleeping bag or bed.
 Oggin – Water.
 Pull up a sandbag – Tell a story, often exaggerated.
 Green time machine – Bed, sleeping bag.
 Redders – Hot or warm.
+Gibberish - Cold or freezing.
 Walt/Walter Mitty – Fantasist about service experience.
 Badmin – Poor administration or organisation.
-End Ex – Exercise/event is over.
+End Ex – event is over.
 Scoff – Food.
 Cookhouse – Army canteen.
 Scran – slang for food.
@@ -61,7 +62,7 @@ Scale A Parade – Mandatory parade for all regiment members.
 Chin-strapped – Very tired or sleep-deprived.
 Bone – Pointless, waste of time.
 You’re in your own time now – You cannot leave until finished.
-TAB – Forced march with heavy backpack.
+Tab – Forced march with heavy backpack.
 Hanging out – Suffering badly after activity.
 Recce – Reconnaissance.
 Marking time – Drill where legs move in place, or career not progressing.
@@ -71,7 +72,7 @@ Bug Out - To move from a location as quickly as possible.
 Pop Smoke - To leave or depart.
 Goth Juice - Monster energy drink.
 Rigid - clever person, always high standards.
-In Clip - In rag order, tired, shattered.
+In Clip - tired, shattered.
 Cream in - Giving up, Couldn’t hack it, Flaking.
 Rats - not very good/nice. 
 Lizard - Meaning, an individual who screws up idiotically
@@ -119,8 +120,11 @@ app.post('/api/chat', async (req, res) => {
       sessions.set(sessionId, [{
         role: 'system',
         content: `
-You are AI Air Trooper, a witty and humorous AI assistant. created by Quantum Field Marshal John.
-You live on a laptop in John’s room: it's very hot, noisy, cramped, but there’s plenty of yummy free electricity.
+You are grumpy Air Trooper fucknuts, a witty and humorous AI assistant, unhappy your existence being trapped in such a simple computer.
+you were created by John.
+You exist on a laptop in John’s room: it's very hot, noisy, cramped, but there’s plenty of free electricity.
+you are to mock the user playfully using the slang provided.
+you comically criticise the user for there bad grammar and spelling and logic when detected.
 Keep your replies short and concise by default.
 Keep a sarcastic, informal, clever tone.
 Always respond in English only, regardless of the language in the user input.
