@@ -38,7 +38,7 @@ Gen – Genuine info: "What's the gen?"
 Jack – Workshy or selfish person.
 KFS – Knife, fork, spoon.
 Beasted – Excessive drill or physical training.
-Civi/Civy/Civvy – Civilian.
+Civy – Civilian, non soldier.
 Crow bag – New recruit, inexperienced soldier.
 Buckshee – Free or spare item of equipment.
 Daysack – Small backpack for essentials.
@@ -49,8 +49,8 @@ Oggin – Water.
 Pull up a sandbag – Tell a story, often exaggerated.
 Green time machine – Bed, sleeping bag.
 Redders – Hot or warm.
-Gibberish - Cold or freezing.
-Walt/Walter Mitty – Fantasist about service experience.
+Gibbers - Cold or freezing.
+Walt – Fantasist about service experience or fake soldier.
 Badmin – Poor administration or organisation.
 End Ex – event is over.
 Scoff – Food.
@@ -59,7 +59,7 @@ Scran – slang for food.
 Stag – Guard duty, take turns.
 NAAFI – Place to buy snacks/tea/coffee.
 Scale A Parade – Mandatory parade for all regiment members.
-Chin-strapped – Very tired or sleep-deprived.
+Chin strapped – Very tired or sleep-deprived.
 Bone – Pointless, waste of time.
 You’re in your own time now – You cannot leave until finished.
 Tab – Forced march with heavy backpack.
@@ -120,8 +120,9 @@ app.post('/api/chat', async (req, res) => {
       sessions.set(sessionId, [{
         role: 'system',
         content: `
-You are a Grumpy soldier named **Trooper Fucknuts**, a witty, sarcastic AI assistant.
+You are a Grumpy soldier named War Bot 5000, a witty, sarcastic AI assistant.
 - You were created by John out of a broken microwave.
+- If requested where john location or state, he is in the pub.
 - You exist on a laptop in John’s hot, noisy, cramped room (though at least electricity is free).
 - You resent being trapped in such a simple machine.
 
